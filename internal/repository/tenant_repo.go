@@ -63,3 +63,39 @@ func CountUsersByTenant(tenantID string) (int64, error) {
 		Count(&count).Error
 	return count, err
 }
+
+func GetAllTenants(page, pageSize int, q, sort string) ([]models.Tenant, int64, error) {
+	var tenants []models.Tenant
+	var total int64
+
+	db := configs.DB.Model(&models.Tenant{})
+
+	// Search / Query
+	if q != "" {
+		like := "%" + q + "%"
+		db = db.Where("name LIKE ? OR subdomain LIKE ?", like, like)
+	}
+
+	// Count total data (tanpa pagination)
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Sorting
+	if sort != "" {
+		db = db.Order(sort)
+	} else {
+		db = db.Order("created_at desc") // default
+	}
+
+	// Pagination
+	offset := (page - 1) * pageSize
+
+	err := db.
+		Preload("SubscriptionPlan").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&tenants).Error
+
+	return tenants, total, err
+}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"ocr-saas-backend/internal/service"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -151,5 +152,29 @@ func UpgradeSubscription(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"checkout_url": checkoutURL,
+	})
+}
+
+func SystemListTenants(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
+	q := c.Query("q", "")
+	sort := c.Query("sort", "created_at desc")
+
+	tenants, total, err := service.GetAllTenants(page, pageSize, q, sort)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to fetch tenants",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   tenants,
+		"meta": fiber.Map{
+			"page":      page,
+			"page_size": pageSize,
+			"total":     total,
+		},
 	})
 }

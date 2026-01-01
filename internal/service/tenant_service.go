@@ -36,3 +36,7 @@ func CreateUpgradeCheckoutURL(tenantID string, planID string) (string, error) {
 
 	return checkoutURL, nil
 }
+
+func GetAllTenants(page, pageSize int, q, sort string) ([]models.Tenant, int64, error) {
+	return repository.GetAllTenants(page, pageSize, q, sort)
+}
