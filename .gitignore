@@ -39,9 +39,9 @@ Thumbs.db
 uploads/
 
 # ---- Swagger docs / Auto-generated ----
-docs/
-docs/swagger.json
-docs/swagger.yaml
+#docs/
+#docs/swagger.json
+#docs/swagger.yaml
 
 # ---- Fiber specific temp files ----
 fiber.pid

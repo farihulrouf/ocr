@@ -28,6 +28,12 @@ func SetupRoutes(app *fiber.App) {
 	authProtected.Put("/profile", handler.UpdateProfile)
 	authProtected.Put("/password", handler.UpdatePassword)
 	authProtected.Post("/logout", handler.Logout)
+
+	// -------------------------
+	// TENANT PROTECTED ROUTES
+	// -------------------------
+	tenant := v0.Group("/tenant", middleware.Protected())
+	tenant.Get("/info", handler.GetTenantInfo)
 }
 
 /*
