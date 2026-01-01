@@ -45,6 +45,7 @@ func SetupRoutes(app *fiber.App) {
 	system := v0.Group("/system", middleware.Protected(), middleware.TenantAdminOnly())
 	system.Get("/tenants", handler.SystemListTenants)
 	system.Get("/departments", handler.ListDepartments)
+	system.Post("/departments", handler.CreateDepartment)
 
 	// =============================
 	// USAGE STATS (ini yang kamu buat)

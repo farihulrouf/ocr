@@ -39,3 +39,7 @@ func GetAllDepartments(page, pageSize int, q, sort string) ([]models.Department,
 
 	return departments, total, err
 }
+
+func CreateDepartment(dept *models.Department) error {
+	return configs.DB.Create(dept).Error
+}
