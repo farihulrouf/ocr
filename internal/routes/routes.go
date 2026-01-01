@@ -46,6 +46,9 @@ func SetupRoutes(app *fiber.App) {
 	system.Get("/tenants", handler.SystemListTenants)
 	system.Get("/departments", handler.ListDepartments)
 	system.Post("/departments", handler.CreateDepartment)
+	system.Get("/departments/:id", handler.GetDepartmentDetailHandler)
+	system.Put("/departments/:id", handler.UpdateDepartment)
+	system.Delete("/departments/:id", handler.DeleteDepartment)
 
 	// =============================
 	// USAGE STATS (ini yang kamu buat)
