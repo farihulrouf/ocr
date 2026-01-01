@@ -98,3 +98,25 @@ func GetProfile(token string) (*ProfileResponse, error) {
 		Dept:  user.DepartmentID.String(),
 	}, nil
 }
+
+func UpdateProfile(userID string, name string, avatar string) error {
+	return repository.UpdateUserProfile(userID, name, avatar)
+}
+
+func UpdatePassword(userID string, oldPass string, newPass string) error {
+	user, err := repository.FindUserByID(userID)
+	if err != nil {
+		return errors.New("user tidak ditemukan")
+	}
+
+	if !utils.CheckPasswordHash(oldPass, user.PasswordHash) {
+		return errors.New("password lama salah")
+	}
+
+	newHash, err := utils.HashPassword(newPass)
+	if err != nil {
+		return errors.New("gagal hash password")
+	}
+
+	return repository.UpdatePassword(userID, newHash)
+}

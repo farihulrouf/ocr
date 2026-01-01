@@ -17,3 +17,18 @@ func FindUserByID(id string) (*models.User, error) {
 	err := configs.DB.Preload("Tenant").Where("id = ?", id).First(&user).Error
 	return &user, err
 }
+
+func UpdateUserProfile(userID string, name string, avatar string) error {
+	return configs.DB.Model(&models.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"name":   name,
+			"avatar": avatar,
+		}).Error
+}
+
+func UpdatePassword(userID string, newHash string) error {
+	return configs.DB.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("password_hash", newHash).Error
+}

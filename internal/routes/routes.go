@@ -2,6 +2,7 @@ package routes
 
 import (
 	"ocr-saas-backend/internal/handler"
+	"ocr-saas-backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -9,11 +10,24 @@ import (
 func SetupRoutes(app *fiber.App) {
 	v0 := app.Group("/v0/api")
 
+	// -------------------------
+	// AUTH PUBLIC ROUTES
+	// -------------------------
 	auth := v0.Group("/auth")
 	auth.Post("/login", handler.Login)
-	auth.Post("/refresh-token", handler.RefreshToken) // <--- TAMBAHKAN INI
-	auth.Get("/me", handler.GetProfile)               // <--- TAMBAHKAN INI
+	auth.Post("/refresh-token", handler.RefreshToken)
+	// auth.Post("/forgot-password", handler.ForgotPassword)
+	//auth.Post("/reset-password", handler.ResetPassword)
+	//auth.Post("/verify-email", handler.VerifyEmail)
 
+	// -------------------------
+	// AUTH PROTECTED ROUTES
+	// -------------------------
+	authProtected := auth.Group("/", middleware.Protected())
+	authProtected.Get("/me", handler.GetProfile)
+	authProtected.Put("/profile", handler.UpdateProfile)
+	authProtected.Put("/password", handler.UpdatePassword)
+	//authProtected.Post("/logout", handler.Logout)
 }
 
 /*

@@ -2,6 +2,7 @@ package models
 
 import (
 	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -65,6 +66,7 @@ type User struct {
 	Email        string      `gorm:"uniqueIndex;not null" json:"email"`
 	PasswordHash string      `json:"-"` // Hidden
 	Name         string      `json:"name"`
+	Avatar       string      // <--- pastikan ada ini
 	Role         string      `gorm:"default:'EMPLOYEE'" json:"role"`
 }
 
@@ -107,20 +109,20 @@ type VendorMaster struct {
 
 type Receipt struct {
 	Base
-	TenantID          uuid.UUID       `gorm:"type:uuid" json:"tenant_id"`
-	UserID            uuid.UUID       `gorm:"type:uuid" json:"user_id"`
-	User              User            `gorm:"foreignKey:UserID" json:"user"` // RELASI KE USER
-	ReportID          *uuid.UUID      `gorm:"type:uuid" json:"report_id"`
-	AccountCategoryID *uuid.UUID      `gorm:"type:uuid" json:"account_category_id"`
+	TenantID          uuid.UUID        `gorm:"type:uuid" json:"tenant_id"`
+	UserID            uuid.UUID        `gorm:"type:uuid" json:"user_id"`
+	User              User             `gorm:"foreignKey:UserID" json:"user"` // RELASI KE USER
+	ReportID          *uuid.UUID       `gorm:"type:uuid" json:"report_id"`
+	AccountCategoryID *uuid.UUID       `gorm:"type:uuid" json:"account_category_id"`
 	AccountCategory   *AccountCategory `gorm:"foreignKey:AccountCategoryID" json:"account_category"`
-	ImageURL          string          `json:"image_url"`
-	Status            string          `gorm:"default:'PENDING'" json:"status"`
-	StoreName         string          `json:"store_name"`
-	TransactionDate   *time.Time      `json:"transaction_date"`
-	TotalAmount       int64           `json:"total_amount"`
-	TaxRegistrationID string          `json:"tax_id"`
-	IsQualified       bool            `gorm:"default:false" json:"is_qualified"`
-	LineItems         []ReceiptItem   `gorm:"foreignKey:ReceiptID" json:"line_items"` // RELASI KE ITEMS
+	ImageURL          string           `json:"image_url"`
+	Status            string           `gorm:"default:'PENDING'" json:"status"`
+	StoreName         string           `json:"store_name"`
+	TransactionDate   *time.Time       `json:"transaction_date"`
+	TotalAmount       int64            `json:"total_amount"`
+	TaxRegistrationID string           `json:"tax_id"`
+	IsQualified       bool             `gorm:"default:false" json:"is_qualified"`
+	LineItems         []ReceiptItem    `gorm:"foreignKey:ReceiptID" json:"line_items"` // RELASI KE ITEMS
 }
 
 type ReceiptItem struct {
@@ -188,7 +190,7 @@ type ExportLog struct {
 	Base
 	TenantID uuid.UUID `gorm:"type:uuid" json:"tenant_id"`
 	UserID   uuid.UUID `gorm:"type:uuid" json:"user_id"`
-	User      User      `gorm:"foreignKey:UserID" json:"user"`
-	Format    string    `json:"format"`
-	FileURL   string    `json:"file_url"`
+	User     User      `gorm:"foreignKey:UserID" json:"user"`
+	Format   string    `json:"format"`
+	FileURL  string    `json:"file_url"`
 }

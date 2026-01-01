@@ -1,10 +1,11 @@
 package main
 
 import (
+	"log"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/routes"
+
 	"github.com/gofiber/fiber/v2"
-	"log"
 )
 
 func main() {

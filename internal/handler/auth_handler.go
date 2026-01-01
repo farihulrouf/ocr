@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"ocr-saas-backend/internal/service"
 	"strings"
 
@@ -43,7 +42,6 @@ func RefreshToken(c *fiber.Ctx) error {
 			"message": "Format request salah",
 		})
 	}
-	fmt.Println("cek", req.RefreshToken)
 	result, err := service.RefreshToken(req.RefreshToken)
 	if err != nil {
 		return c.Status(401).JSON(fiber.Map{
@@ -81,5 +79,59 @@ func GetProfile(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status": "success",
 		"data":   result,
+	})
+}
+
+func UpdateProfile(c *fiber.Ctx) error {
+	userID := c.Locals("user_id") // Dari middleware JWT kamu (belum kita buat)
+
+	type Req struct {
+		Name   string `json:"name"`
+		Avatar string `json:"avatar"`
+	}
+
+	var req Req
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Format request salah",
+		})
+	}
+
+	if err := service.UpdateProfile(userID.(string), req.Name, req.Avatar); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Profile updated",
+	})
+}
+
+type UpdatePasswordRequest struct {
+	OldPass string `json:"old_pass"`
+	NewPass string `json:"new_pass"`
+}
+
+func UpdatePassword(c *fiber.Ctx) error {
+	var body UpdatePasswordRequest
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	userID := c.Locals("user_id").(string)
+
+	err := service.UpdatePassword(userID, body.OldPass, body.NewPass)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Password updated",
+		"status":  "success",
 	})
 }
