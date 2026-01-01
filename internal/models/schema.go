@@ -202,3 +202,13 @@ type RefreshToken struct {
 	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time
 }
+
+// TenantUsage untuk menyimpan limit & pemakaian OCR per tenant
+type TenantUsage struct {
+	TenantID uuid.UUID `gorm:"type:uuid;primaryKey" json:"tenant_id"`
+	OCRLimit int64     `json:"ocr_limit"`
+	OCRUsed  int64     `json:"ocr_used"`
+
+	// Optional: relasi ke Tenant
+	Tenant Tenant `gorm:"foreignKey:TenantID" json:"-"`
+}

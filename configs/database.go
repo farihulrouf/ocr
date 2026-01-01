@@ -70,6 +70,7 @@ func ConnectDB() {
 		&models.ApprovalLog{},
 		&models.AuditTrail{},
 		&models.ExportLog{},
+		&models.TenantUsage{},
 	)
 
 	if err != nil {

@@ -33,3 +33,39 @@ func Protected() fiber.Handler {
 		return c.Next()
 	}
 }
+
+func SuperAdminOnly() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role := c.Locals("role")
+
+		if role != "ADMIN" {
+			return c.Status(403).JSON(fiber.Map{
+				"error": "Forbidden: Super Admin only",
+			})
+		}
+
+		return c.Next()
+	}
+}
+
+func TenantAdminOnly() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role := c.Locals("role")
+
+		if role != "MANAGER" {
+			return c.Status(403).JSON(fiber.Map{
+				"error": "Forbidden – Tenant Admin only",
+			})
+		}
+		return c.Next()
+	}
+}
+
+func EmployeeOnly() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		if c.Locals("role") != "EMPLOYEE" {
+			return c.Status(403).JSON(fiber.Map{"error": "Employees only"})
+		}
+		return c.Next()
+	}
+}

@@ -8,32 +8,49 @@ import (
 )
 
 func SetupRoutes(app *fiber.App) {
+
 	v0 := app.Group("/v0/api")
 
-	// -------------------------
-	// AUTH PUBLIC ROUTES
-	// -------------------------
+	// =============================
+	// PUBLIC AUTH ROUTES
+	// =============================
 	auth := v0.Group("/auth")
 	auth.Post("/login", handler.Login)
 	auth.Post("/refresh-token", handler.RefreshToken)
 	// auth.Post("/forgot-password", handler.ForgotPassword)
-	//auth.Post("/reset-password", handler.ResetPassword)
-	//auth.Post("/verify-email", handler.VerifyEmail)
+	// auth.Post("/reset-password", handler.ResetPassword)
+	// auth.Post("/verify-email", handler.VerifyEmail)
 
-	// -------------------------
-	// AUTH PROTECTED ROUTES
-	// -------------------------
+	// =============================
+	// AUTH PROTECTED
+	// =============================
 	authProtected := auth.Group("/", middleware.Protected())
 	authProtected.Get("/me", handler.GetProfile)
 	authProtected.Put("/profile", handler.UpdateProfile)
 	authProtected.Put("/password", handler.UpdatePassword)
 	authProtected.Post("/logout", handler.Logout)
 
-	// -------------------------
-	// TENANT PROTECTED ROUTES
-	// -------------------------
+	// =============================
+	// TENANT PROTECTED
+	// =============================
 	tenant := v0.Group("/tenant", middleware.Protected())
+
 	tenant.Get("/info", handler.GetTenantInfo)
+	tenant.Put("/info", handler.UpdateTenantInfo)
+	tenant.Get("/settings", handler.GetTenantSettings)
+
+	tenant.Get("/subscription", handler.GetTenantSubscription)
+	tenant.Post("/subscription/upgrade", handler.UpgradeSubscription)
+
+	system := v0.Group("/system", middleware.Protected(), middleware.TenantAdminOnly())
+	system.Get("/tenants", handler.SystemListTenants)
+	system.Get("/departments", handler.ListDepartments)
+	system.Post("/departments", handler.CreateDepartment)
+
+	// =============================
+	// USAGE STATS (ini yang kamu buat)
+	// =============================
+	//tenant.Get("/usage", handler.GetUsageStats) // GET /v0/api/tenant/usage
 }
 
 /*
