@@ -34,6 +34,13 @@ func SetupRoutes(app *fiber.App) {
 	// -------------------------
 	tenant := v0.Group("/tenant", middleware.Protected())
 	tenant.Get("/info", handler.GetTenantInfo)
+	tenant.Put("/info", handler.UpdateTenantInfo)
+	tenant.Get("/settings", handler.GetTenantSettings)
+	tenant.Get("/subscription", handler.GetTenantSubscription)
+	tenant.Post("/subscription/upgrade", handler.UpgradeSubscription)
+
+	//upgrade
+
 }
 
 /*
