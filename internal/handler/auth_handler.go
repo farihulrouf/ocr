@@ -135,3 +135,18 @@ func UpdatePassword(c *fiber.Ctx) error {
 		"status":  "success",
 	})
 }
+
+func Logout(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	err := service.Logout(userID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Session cleared",
+	})
+}

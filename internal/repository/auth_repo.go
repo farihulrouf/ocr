@@ -32,3 +32,7 @@ func UpdatePassword(userID string, newHash string) error {
 		Where("id = ?", userID).
 		Update("password_hash", newHash).Error
 }
+
+func DeleteRefreshToken(userID string) error {
+	return configs.DB.Where("user_id = ?", userID).Delete(&models.RefreshToken{}).Error
+}

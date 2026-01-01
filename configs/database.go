@@ -18,7 +18,7 @@ var DB *gorm.DB
 // ConnectDB melakukan inisialisasi koneksi ke database dan auto-migrate
 func ConnectDB() {
 	// Memastikan file .env sudah di-load (opsional jika sudah dipanggil di main)
-	// godotenv.Load() 
+	// godotenv.Load()
 
 	host := os.Getenv("DB_HOST")
 	user := os.Getenv("DB_USER")
@@ -56,6 +56,7 @@ func ConnectDB() {
 		&models.CompanySetting{},
 		&models.Department{},
 		&models.User{},
+		&models.RefreshToken{}, // <-- TAMBAHKAN INI
 		&models.UserApprover{},
 		&models.AccountCategory{},
 		&models.TaxRate{},

@@ -27,7 +27,7 @@ func SetupRoutes(app *fiber.App) {
 	authProtected.Get("/me", handler.GetProfile)
 	authProtected.Put("/profile", handler.UpdateProfile)
 	authProtected.Put("/password", handler.UpdatePassword)
-	//authProtected.Post("/logout", handler.Logout)
+	authProtected.Post("/logout", handler.Logout)
 }
 
 /*

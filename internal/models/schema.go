@@ -194,3 +194,11 @@ type ExportLog struct {
 	Format   string    `json:"format"`
 	FileURL  string    `json:"file_url"`
 }
+
+type RefreshToken struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	UserID    uuid.UUID `gorm:"type:uuid;index" json:"user_id"`
+	Token     string    `gorm:"uniqueIndex" json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time
+}

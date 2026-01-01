@@ -120,3 +120,7 @@ func UpdatePassword(userID string, oldPass string, newPass string) error {
 
 	return repository.UpdatePassword(userID, newHash)
 }
+
+func Logout(userID string) error {
+	return repository.DeleteRefreshToken(userID)
+}
