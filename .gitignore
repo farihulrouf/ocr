@@ -1,0 +1,52 @@
+# ---- Go Build ----
+bin/
+build/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# ---- Go Modules ----
+go.sum
+vendor/
+
+# ---- Temporary files ----
+*.log
+*.tmp
+*.temp
+*.cache
+
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+
+# ---- JetBrains / Goland ----
+.idea/
+
+# ---- VSCode ----
+.vscode/
+
+# ---- Env / Credentials ----
+.env
+.env.local
+.env.*.local
+
+# ---- Uploaded Files ----
+uploads/
+
+# ---- Swagger docs / Auto-generated ----
+docs/
+docs/swagger.json
+docs/swagger.yaml
+
+# ---- Fiber specific temp files ----
+fiber.pid
+
+# ---- GORM SQLite (if any) ----
+*.db
+*.sqlite
+*.sqlite3
