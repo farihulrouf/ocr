@@ -113,3 +113,37 @@ func UpdateDepartment(c *fiber.Ctx) error {
 		"message": "Updated",
 	})
 }
+
+func DeleteDepartment(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid department id",
+		})
+	}
+
+	err = service.DeleteDepartment(id)
+	if err != nil {
+		if err.Error() == "department not found" {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if err.Error() == "department still has users" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "cannot delete department with active users",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "department deleted successfully",
+	})
+}

@@ -82,3 +82,25 @@ func UpdateDepartment(id string, name string) error {
 
 	return nil
 }
+
+func DeleteDepartment(id uuid.UUID) error {
+
+	// Check if department exists
+	_, err := repository.GetDepartmentByID(id)
+	if err != nil {
+		return errors.New("department not found")
+	}
+
+	// Check if department still has users
+	users, err := repository.GetUsersByDepartment(id)
+	if err != nil {
+		return err
+	}
+
+	if len(users) > 0 {
+		return errors.New("department still has users")
+	}
+
+	// Soft delete
+	return repository.DeleteDepartment(id)
+}

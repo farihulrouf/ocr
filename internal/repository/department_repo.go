@@ -76,3 +76,7 @@ func UpdateDepartmentByID(id uuid.UUID, name string) error {
 			"name": name,
 		}).Error
 }
+
+func DeleteDepartment(id uuid.UUID) error {
+	return configs.DB.Where("id = ?", id).Delete(&models.Department{}).Error
+}
