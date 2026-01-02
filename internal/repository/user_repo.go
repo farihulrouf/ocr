@@ -3,6 +3,8 @@ package repository
 import (
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
+
+	"github.com/google/uuid"
 )
 
 func GetAllUsers(page, pageSize int, q, sort string) ([]map[string]interface{}, int64, error) {
@@ -50,4 +52,50 @@ func GetAllUsers(page, pageSize int, q, sort string) ([]map[string]interface{}, 
 	}
 
 	return result, total, nil
+}
+
+func GetUserDetail(tenantID, userID uuid.UUID) (map[string]interface{}, error) {
+	var user models.User
+
+	err := configs.DB.
+		Where("id = ? AND tenant_id = ?", userID, tenantID).
+		First(&user).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// ambil history (AuditTrail)
+	var history []models.AuditTrail
+	configs.DB.
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Find(&history)
+
+	// mapping output
+	result := map[string]interface{}{
+		"id":      user.ID,
+		"name":    user.Name,
+		"history": history,
+	}
+
+	return result, nil
+}
+
+func UpdateUser(tenantID, userID uuid.UUID, role string, deptID *uuid.UUID) error {
+	updateData := map[string]interface{}{
+		"role": role,
+	}
+
+	// department_id boleh null
+	if deptID != nil {
+		updateData["department_id"] = *deptID
+	} else {
+		updateData["department_id"] = nil
+	}
+
+	return configs.DB.
+		Model(&models.User{}).
+		Where("id = ? AND tenant_id = ?", userID, tenantID).
+		Updates(updateData).Error
 }
