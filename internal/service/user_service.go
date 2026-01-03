@@ -6,8 +6,9 @@ import (
 	"github.com/google/uuid"
 )
 
-func GetAllUsers(page, pageSize int, q, sort string) (interface{}, error) {
-	data, total, err := repository.GetAllUsers(page, pageSize, q, sort)
+func GetAllUsers(
+	tenantID uuid.UUID, page, pageSize int, q, sort string) (interface{}, error) {
+	data, total, err := repository.GetAllUsers(tenantID, page, pageSize, q, sort)
 	if err != nil {
 		return nil, err
 	}

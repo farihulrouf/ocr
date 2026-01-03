@@ -14,15 +14,37 @@ func ListUsers(c *fiber.Ctx) error {
 	q := c.Query("q", "")
 	sort := c.Query("sort", "")
 
-	result, err := service.GetAllUsers(page, pageSize, q, sort)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"status": "error",
-			"error":  err.Error(),
+	tenantAny := c.Locals("tenant_id")
+	if tenantAny == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "unauthorized",
 		})
 	}
 
-	return c.Status(200).JSON(result)
+	tenantIDStr, ok := tenantAny.(string)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{"error": "invalid tenant"})
+	}
+
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return c.Status(401).JSON(fiber.Map{"error": "invalid tenant uuid"})
+	}
+
+	result, err := service.GetAllUsers(
+		tenantID,
+		page,
+		pageSize,
+		q,
+		sort,
+	)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(result)
 }
 
 func UserDetail(c *fiber.Ctx) error {

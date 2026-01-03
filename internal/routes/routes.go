@@ -41,8 +41,8 @@ func SetupRoutes(app *fiber.App) {
 
 	tenant.Get("/subscription", handler.GetTenantSubscription)
 	tenant.Post("/subscription/upgrade", handler.UpgradeSubscription)
-
-	system := v0.Group("/system", middleware.Protected(), middleware.TenantAdminOnly())
+	//SuperAdminOnly
+	system := v0.Group("/system", middleware.Protected(), middleware.SuperAdminOnly())
 	system.Get("/tenants", handler.SystemListTenants)
 	system.Get("/departments", handler.ListDepartments)
 	system.Post("/departments", handler.CreateDepartment)

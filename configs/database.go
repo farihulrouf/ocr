@@ -56,21 +56,25 @@ func ConnectDB() {
 		&models.CompanySetting{},
 		&models.Department{},
 		&models.User{},
-		&models.RefreshToken{}, // <-- TAMBAHKAN INI
-		&models.UserApprover{},
+		&models.RefreshToken{}, // Token login
+		&models.UserApprover{}, // Relasi bawahan → atasan
 		&models.AccountCategory{},
 		&models.TaxRate{},
 		&models.PaymentMethod{},
 		&models.VendorMaster{},
-		&models.Receipt{},
-		&models.ReceiptItem{},
-		&models.ExpenseReport{},
-		&models.ApprovalWorkflow{},
-		&models.ApprovalStep{},
-		&models.ApprovalLog{},
-		&models.AuditTrail{},
-		&models.ExportLog{},
-		&models.TenantUsage{},
+
+		// ======= IMPORTANT: Parent dulu baru Child ========
+		&models.ExpenseReport{},    // Parent Receipt, ApprovalLog, ExportLog
+		&models.ApprovalWorkflow{}, // Parent ApprovalStep
+		&models.ApprovalStep{},     // Child
+
+		&models.Receipt{},     // Child dari ExpenseReport
+		&models.ReceiptItem{}, // Child dari Receipt
+
+		&models.ApprovalLog{}, // Child ExpenseReport
+		&models.AuditTrail{},  // Child Tenant/User
+		&models.ExportLog{},   // Child ExpenseReport
+		&models.TenantUsage{}, // Statistik pemakaian
 	)
 
 	if err != nil {

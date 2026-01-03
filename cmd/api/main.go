@@ -16,7 +16,7 @@ func main() {
 	configs.ConnectDB()
 
 	// 3. Jalankan Seeder
-	//configs.SeedDatabase(configs.DB)
+	configs.SeedDatabase(configs.DB)
 
 	app := fiber.New()
 

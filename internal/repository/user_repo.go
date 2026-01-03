@@ -7,13 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
-func GetAllUsers(page, pageSize int, q, sort string) ([]map[string]interface{}, int64, error) {
+func GetAllUsers(
+	tenantID uuid.UUID, page, pageSize int, q, sort string) ([]map[string]interface{}, int64, error) {
 	var users []models.User
 	var total int64
 
 	offset := (page - 1) * pageSize
 
-	query := configs.DB.Model(&models.User{}).Preload("Department")
+	query := configs.DB.
+		Model(&models.User{}).
+		Preload("Department").
+		Where("tenant_id = ?", tenantID) // 🔒 PENTING
 
 	// search
 	if q != "" {
