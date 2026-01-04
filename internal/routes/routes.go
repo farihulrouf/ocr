@@ -2,6 +2,7 @@ package routes
 
 import (
 	"ocr-saas-backend/internal/handler"
+	"ocr-saas-backend/internal/handler/categories"
 	"ocr-saas-backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
@@ -53,6 +54,16 @@ func SetupRoutes(app *fiber.App) {
 	system.Get("/org/users", handler.ListUsers)
 	system.Get("/org/users/:id", handler.UserDetail)
 	system.Put("/org/users/:id", handler.UpdateUser)
+
+	system.Get("/categories", categories.ListCategories)
+	system.Post("/categories", categories.CreateCategory)
+	system.Put("/categories/:id", categories.UpdateCategory)
+	//finance := api.Group("/finance", middleware.Auth())
+
+	//finance.Get("/categories", handler.ListCategories)
+	//finance.Post("/categories", middleware.RoleAdmin(), handler.CreateCategory)
+	//finance.Put("/categories/:id", middleware.RoleAdmin(), handler.UpdateCategory)
+	//finance.Delete("/categories/:id", middleware.RoleAdmin(), handler.DeleteCategory)
 
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
 	emprole.Get("/receipt", handler.GetMyReceipts)
