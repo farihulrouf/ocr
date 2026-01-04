@@ -3,6 +3,7 @@ package routes
 import (
 	"ocr-saas-backend/internal/handler"
 	"ocr-saas-backend/internal/handler/categories"
+	"ocr-saas-backend/internal/handler/payments"
 	"ocr-saas-backend/internal/handler/tax"
 	"ocr-saas-backend/middleware"
 
@@ -65,6 +66,11 @@ func SetupRoutes(app *fiber.App) {
 	system.Post("/tax", tax.CreateTaxRate)
 	system.Put("/tax/:id", tax.UpdateTaxRate)
 	system.Delete("/tax/:id", tax.DeleteTaxRate)
+
+	system.Get("/payments", payments.GetAllPayments)
+	system.Post("/payments", payments.CreatePayments)
+	system.Put("/payments/:id", payments.UpdatePayments)
+	system.Delete("/payments/:id", payments.DeletePayments)
 
 	//finance := api.Group("/finance", middleware.Auth())
 
