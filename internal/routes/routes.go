@@ -5,6 +5,7 @@ import (
 	"ocr-saas-backend/internal/handler/categories"
 	"ocr-saas-backend/internal/handler/payments"
 	"ocr-saas-backend/internal/handler/tax"
+	"ocr-saas-backend/internal/handler/vendors"
 	"ocr-saas-backend/middleware"
 
 	"github.com/gofiber/fiber/v2"
@@ -71,6 +72,11 @@ func SetupRoutes(app *fiber.App) {
 	system.Post("/payments", payments.CreatePayments)
 	system.Put("/payments/:id", payments.UpdatePayments)
 	system.Delete("/payments/:id", payments.DeletePayments)
+
+	system.Get("/vendors", vendors.GetAllVendors)
+	system.Post("/vendors", vendors.CreateVendor)
+	system.Put("/vendors/:id", vendors.UpdateVendor)
+	system.Delete("/vendors/:id", vendors.DeleteVendor)
 
 	//finance := api.Group("/finance", middleware.Auth())
 
