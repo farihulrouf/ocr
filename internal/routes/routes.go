@@ -58,6 +58,7 @@ func SetupRoutes(app *fiber.App) {
 	system.Get("/categories", categories.ListCategories)
 	system.Post("/categories", categories.CreateCategory)
 	system.Put("/categories/:id", categories.UpdateCategory)
+	system.Delete("/categories/:id", categories.DeleteCategory)
 	//finance := api.Group("/finance", middleware.Auth())
 
 	//finance.Get("/categories", handler.ListCategories)
