@@ -61,6 +61,9 @@ func SetupRoutes(app *fiber.App) {
 	// USAGE STATS (ini yang kamu buat)
 	// =============================
 	//tenant.Get("/usage", handler.GetUsageStats) // GET /v0/api/tenant/usage
+	manager := v0.Group("/manager", middleware.Protected(), middleware.TenantAdminOnly())
+	manager.Get("/receipt", handler.GetAllReceipts)
+
 }
 
 /*
