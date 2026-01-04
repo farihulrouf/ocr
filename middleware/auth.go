@@ -54,7 +54,7 @@ func TenantAdminOnly() fiber.Handler {
 
 		if role != "MANAGER" {
 			return c.Status(403).JSON(fiber.Map{
-				"error": "Forbidden – Tenant Admin only",
+				"error": "Forbidden – Tenant Manager only",
 			})
 		}
 		return c.Next()

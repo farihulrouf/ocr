@@ -53,6 +53,10 @@ func SetupRoutes(app *fiber.App) {
 	system.Get("/org/users", handler.ListUsers)
 	system.Get("/org/users/:id", handler.UserDetail)
 	system.Put("/org/users/:id", handler.UpdateUser)
+
+	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
+	emprole.Get("/receipt", handler.GetMyReceipts)
+	//Get("/receipts", handler.GetMyReceipts)
 	// =============================
 	// USAGE STATS (ini yang kamu buat)
 	// =============================
