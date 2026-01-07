@@ -100,7 +100,7 @@ func GetAllReceipts(
 	return receipts, total, err
 }
 
-func GetReceiptDetail(
+func GetReceiptDetailByID(
 	tenantID uuid.UUID,
 	receiptID uuid.UUID,
 ) (*models.Receipt, error) {

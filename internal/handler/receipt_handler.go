@@ -92,3 +92,39 @@ func GetAllReceipts(c *fiber.Ctx) error {
 
 	return c.JSON(response)
 }
+
+func GetReceiptDetail(c *fiber.Ctx) error {
+	tenantIDStr, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant context",
+		)
+	}
+
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant id",
+		)
+	}
+
+	receiptID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid receipt id",
+		)
+	}
+
+	result, err := service.GetReceiptDetail(tenantID, receiptID)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusNotFound,
+			err.Error(),
+		)
+	}
+
+	return c.JSON(result)
+}
