@@ -3,6 +3,7 @@ package handler
 import (
 	"ocr-saas-backend/internal/service"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -127,4 +128,81 @@ func GetReceiptDetail(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+func ConfirmReceipt(c *fiber.Ctx) error {
+	tenantIDStr, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant context",
+		)
+	}
+
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant id",
+		)
+	}
+
+	receiptID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid receipt id",
+		)
+	}
+
+	// request body
+	var req struct {
+		Total int64  `json:"total"`
+		Date  string `json:"date"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid request body",
+		)
+	}
+
+	if req.Total <= 0 {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"total must be greater than zero",
+		)
+	}
+
+	transactionDate, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid date format (use YYYY-MM-DD)",
+		)
+	}
+	// call service
+	err = service.ConfirmReceipt(
+		tenantID,
+		receiptID,
+		req.Total,
+		transactionDate,
+	)
+	if err != nil {
+		switch err {
+		case service.ErrReceiptNotFound:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		case service.ErrReceiptAlreadyFinal:
+			return fiber.NewError(fiber.StatusConflict, err.Error())
+		case service.ErrInvalidTotalAmount:
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		default:
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "confirmed",
+	})
 }

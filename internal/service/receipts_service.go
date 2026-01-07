@@ -5,6 +5,7 @@ import (
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -203,4 +204,49 @@ func mapTaxation(isQualified bool) string {
 		return "eligible"
 	}
 	return "non-eligible"
+}
+
+var (
+	ErrReceiptNotFound     = errors.New("receipt not found")
+	ErrReceiptAlreadyFinal = errors.New("receipt already confirmed or rejected")
+	ErrInvalidTotalAmount  = errors.New("total amount does not match receipt items")
+)
+
+func ConfirmReceipt(
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+	total int64,
+	date time.Time,
+) error {
+
+	// 1️⃣ ambil detail receipt
+	receipt, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrReceiptNotFound
+		}
+		return err
+	}
+
+	// 2️⃣ validasi status
+	if receipt.Status != "PENDING" {
+		return ErrReceiptAlreadyFinal
+	}
+
+	// 3️⃣ optional: validasi total dari items
+	var sum int64
+	for _, item := range receipt.LineItems {
+		sum += item.Amount
+	}
+
+	if sum > 0 && sum != total {
+		return ErrInvalidTotalAmount
+	}
+	// 4️⃣ update receipt
+	return repository.ConfirmReceiptByID(
+		tenantID,
+		receiptID,
+		total,
+		date,
+	)
 }

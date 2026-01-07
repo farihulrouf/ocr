@@ -3,6 +3,7 @@ package repository
 import (
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -120,4 +121,25 @@ func GetReceiptDetailByID(
 	}
 
 	return &receipt, nil
+}
+
+func ConfirmReceiptByID(
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+	total int64,
+	date time.Time,
+) error {
+
+	return configs.DB.
+		Model(&models.Receipt{}).
+		Where(`
+			id = ? 
+			AND tenant_id = ?
+			AND status = 'PENDING'
+		`, receiptID, tenantID).
+		Updates(map[string]interface{}{
+			"total_amount":     total,
+			"transaction_date": date,
+			"status":           "APPROVED",
+		}).Error
 }
