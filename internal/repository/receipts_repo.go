@@ -99,3 +99,25 @@ func GetAllReceipts(
 
 	return receipts, total, err
 }
+
+func GetReceiptDetail(
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+) (*models.Receipt, error) {
+
+	var receipt models.Receipt
+
+	err := configs.DB.
+		Model(&models.Receipt{}).
+		Preload("User").
+		Preload("AccountCategory").
+		Preload("LineItems").
+		Where("id = ? AND tenant_id = ?", receiptID, tenantID).
+		First(&receipt).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &receipt, nil
+}

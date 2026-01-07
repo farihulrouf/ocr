@@ -94,6 +94,7 @@ func SetupRoutes(app *fiber.App) {
 	//tenant.Get("/usage", handler.GetUsageStats) // GET /v0/api/tenant/usage
 	manager := v0.Group("/manager", middleware.Protected(), middleware.TenantAdminOnly())
 	manager.Get("/receipt", handler.GetAllReceipts)
+	//manager.Get("/receipt/:id", handler.GetReceiptDetail)
 
 }
 
