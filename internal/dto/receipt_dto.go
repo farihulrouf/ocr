@@ -32,3 +32,38 @@ type AdminReceiptRow struct {
 	Status    string          `json:"status"`
 	User      ReceiptUserInfo `json:"user"`
 }
+
+/* =======================
+   TAMBAHAN UNTUK DETAIL
+   ======================= */
+
+type ReceiptDetailResponse struct {
+	ID        uuid.UUID `json:"id"`
+	RecordNo  string    `json:"record_no"`
+	Date      string    `json:"date"`
+	StoreName string    `json:"store_name"`
+
+	Category *ReceiptDetailCategory `json:"category"`
+	Taxation string                 `json:"taxation"`
+	Amount   int64                  `json:"amount"`
+	Status   string                 `json:"status"`
+	ImageURL string                 `json:"image_url"` // ✅ TAMBAH DI SINI
+	Items    []ReceiptDetailItem    `json:"items"`
+
+	User ReceiptUserInfo `json:"user"`
+
+	OCRRaw any `json:"ocr_raw,omitempty"`
+}
+
+type ReceiptDetailCategory struct {
+	ID   uuid.UUID `json:"id"`
+	Code string    `json:"code"`
+	Name string    `json:"name"`
+}
+
+type ReceiptDetailItem struct {
+	Description string `json:"description"`
+	Amount      int64  `json:"amount"`
+	TaxAmount   int64  `json:"tax_amount"`
+	TaxRate     int    `json:"tax_rate"`
+}
