@@ -253,6 +253,7 @@ func DeleteReceipt(c *fiber.Ctx) error {
 }
 
 func BulkDeleteReceipts(c *fiber.Ctx) error {
+	// tenant
 	tenantIDStr, ok := c.Locals("tenant_id").(string)
 	if !ok {
 		return fiber.NewError(
@@ -266,6 +267,23 @@ func BulkDeleteReceipts(c *fiber.Ctx) error {
 		return fiber.NewError(
 			fiber.StatusUnauthorized,
 			"invalid tenant id",
+		)
+	}
+
+	// user
+	userIDStr, ok := c.Locals("user_id").(string)
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid user context",
+		)
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid user id",
 		)
 	}
 
@@ -302,6 +320,7 @@ func BulkDeleteReceipts(c *fiber.Ctx) error {
 
 	deleted, err := service.BulkDeleteReceiptsManager(
 		tenantID,
+		userID,
 		ids,
 	)
 	if err != nil {

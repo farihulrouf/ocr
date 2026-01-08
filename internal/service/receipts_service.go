@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
+	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository"
@@ -277,6 +279,7 @@ var (
 
 func BulkDeleteReceiptsManager(
 	tenantID uuid.UUID,
+	userID uuid.UUID,
 	ids []uuid.UUID,
 ) (int64, error) {
 
@@ -295,6 +298,26 @@ func BulkDeleteReceiptsManager(
 		}
 		return 0, err
 	}
+
+	oldData, _ := json.Marshal(map[string]interface{}{
+		"ids": ids,
+	})
+
+	newData, _ := json.Marshal(map[string]interface{}{
+		"deleted": deleted,
+	})
+
+	audit := models.AuditTrail{
+		TenantID:  tenantID,
+		UserID:    userID,
+		Action:    "BULK_DELETE_RECEIPT",
+		TableName: "receipts",
+		RecordID:  "",
+		OldData:   string(oldData),
+		NewData:   string(newData),
+	}
+
+	_ = configs.DB.Create(&audit)
 
 	return deleted, nil
 }
