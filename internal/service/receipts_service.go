@@ -250,3 +250,23 @@ func ConfirmReceipt(
 		date,
 	)
 }
+
+func DeleteReceiptManager(
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+) error {
+
+	err := repository.DeleteReceiptByIDManager(
+		tenantID,
+		receiptID,
+	)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrReceiptNotFound
+		}
+		return err
+	}
+
+	return nil
+}

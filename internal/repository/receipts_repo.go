@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 func GetMyReceipts(
@@ -142,4 +143,27 @@ func ConfirmReceiptByID(
 			"transaction_date": date,
 			"status":           "APPROVED",
 		}).Error
+}
+
+func DeleteReceiptByIDManager(
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+) error {
+
+	result := configs.DB.
+		Where(`
+			id = ?
+			AND tenant_id = ?
+		`, receiptID, tenantID).
+		Delete(&models.Receipt{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }
