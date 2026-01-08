@@ -217,3 +217,31 @@ func BulkRestoreReceiptsByIDs(
 
 	return result.RowsAffected, nil
 }
+
+// internal/repository/receipt_repository.go
+func BulkUpdateReceiptStatusTx(
+	tx *gorm.DB,
+	tenantID uuid.UUID,
+	ids []uuid.UUID,
+	newStatus string,
+) (int64, error) {
+
+	result := tx.Model(&models.Receipt{}).
+		Where(`
+			id IN ?
+			AND tenant_id = ?
+			AND status = 'PENDING'
+			AND deleted_at IS NULL
+		`, ids, tenantID).
+		Update("status", newStatus)
+
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return 0, gorm.ErrRecordNotFound
+	}
+
+	return result.RowsAffected, nil
+}

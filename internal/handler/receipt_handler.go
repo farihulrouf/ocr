@@ -434,3 +434,85 @@ func BulkRestoreReceipts(c *fiber.Ctx) error {
 		"restored": restored,
 	})
 }
+
+// internal/handler/receipt_handler.go
+
+func BulkApproveReceipts(c *fiber.Ctx) error {
+	return bulkApproveReject(c, "APPROVE")
+}
+
+func BulkRejectReceipts(c *fiber.Ctx) error {
+	return bulkApproveReject(c, "REJECT")
+}
+
+func bulkApproveReject(c *fiber.Ctx, action string) error {
+	// tenant
+	tenantIDStr, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid tenant context")
+	}
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid tenant id")
+	}
+
+	// user
+	userIDStr, ok := c.Locals("user_id").(string)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid user context")
+	}
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid user id")
+	}
+
+	// request
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	if len(req.IDs) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "ids cannot be empty")
+	}
+
+	ids := make([]uuid.UUID, 0, len(req.IDs))
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid receipt id")
+		}
+		ids = append(ids, id)
+	}
+
+	// mapping action
+	var auditAction string
+	switch action {
+	case "APPROVE":
+		auditAction = "BULK_APPROVE_RECEIPT"
+	case "REJECT":
+		auditAction = "BULK_REJECT_RECEIPT"
+	default:
+		return fiber.NewError(fiber.StatusBadRequest, "invalid action")
+	}
+
+	updated, err := service.BulkApproveRejectReceipts(
+		tenantID,
+		userID,
+		ids,
+		action,
+		auditAction,
+	)
+	if err != nil {
+		if err == service.ErrNoReceiptUpdated {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"updated": updated,
+	})
+}
