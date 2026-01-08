@@ -98,6 +98,8 @@ func SetupRoutes(app *fiber.App) {
 	manager.Put("/receipt/:id", handler.ConfirmReceipt)
 	manager.Delete("/receipt/:id", handler.DeleteReceipt)
 	manager.Post("/receipt/bulk/delete", handler.BulkDeleteReceipts)
+
+	manager.Post("/receipt/bulk/restore", handler.BulkRestoreReceipts)
 }
 
 /*

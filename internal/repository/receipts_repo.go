@@ -191,3 +191,29 @@ func BulkDeleteReceiptsByManager(
 
 	return result.RowsAffected, nil
 }
+
+func BulkRestoreReceiptsByIDs(
+	tenantID uuid.UUID,
+	ids []uuid.UUID,
+) (int64, error) {
+
+	result := configs.DB.
+		Unscoped().
+		Model(&models.Receipt{}).
+		Where(`
+			id IN ?
+			AND tenant_id = ?
+			AND deleted_at IS NOT NULL
+		`, ids, tenantID).
+		Update("deleted_at", nil)
+
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return 0, gorm.ErrRecordNotFound
+	}
+
+	return result.RowsAffected, nil
+}

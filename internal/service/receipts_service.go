@@ -321,3 +321,46 @@ func BulkDeleteReceiptsManager(
 
 	return deleted, nil
 }
+
+var ErrNoReceiptRestored = errors.New("no receipt restored")
+
+func BulkRestoreReceiptsManager(
+	tenantID uuid.UUID,
+	userID uuid.UUID,
+	receiptIDs []uuid.UUID,
+) (int64, error) {
+
+	restored, err := repository.BulkRestoreReceiptsByIDs(
+		tenantID,
+		receiptIDs,
+	)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, ErrNoReceiptRestored
+		}
+		return 0, err
+	}
+
+	// ===== AUDIT LOG =====
+	oldData, _ := json.Marshal(map[string]interface{}{
+		"ids": receiptIDs,
+	})
+
+	newData, _ := json.Marshal(map[string]interface{}{
+		"restored": restored,
+	})
+
+	audit := models.AuditTrail{
+		TenantID:  tenantID,
+		UserID:    userID,
+		Action:    "BULK_RESTORE_RECEIPT",
+		TableName: "receipts",
+		RecordID:  "",
+		OldData:   string(oldData),
+		NewData:   string(newData),
+	}
+
+	_ = configs.DB.Create(&audit)
+
+	return restored, nil
+}
