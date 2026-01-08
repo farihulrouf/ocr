@@ -206,3 +206,48 @@ func ConfirmReceipt(c *fiber.Ctx) error {
 		"status": "confirmed",
 	})
 }
+
+func DeleteReceipt(c *fiber.Ctx) error {
+	tenantIDStr, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant context",
+		)
+	}
+
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant id",
+		)
+	}
+
+	receiptID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid receipt id",
+		)
+	}
+
+	err = service.DeleteReceiptManager(tenantID, receiptID)
+	if err != nil {
+		if err == service.ErrReceiptNotFound {
+			return fiber.NewError(
+				fiber.StatusNotFound,
+				err.Error(),
+			)
+		}
+		return fiber.NewError(
+			fiber.StatusInternalServerError,
+			err.Error(),
+		)
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "receipt deleted",
+	})
+}

@@ -96,6 +96,7 @@ func SetupRoutes(app *fiber.App) {
 	manager.Get("/receipt", handler.GetAllReceipts)
 	manager.Get("/receipt/:id", handler.GetReceiptDetail)
 	manager.Put("/receipt/:id", handler.ConfirmReceipt)
+	manager.Delete("/receipt/:id", handler.DeleteReceipt)
 }
 
 /*
