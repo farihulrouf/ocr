@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
+	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository"
@@ -269,4 +271,176 @@ func DeleteReceiptManager(
 	}
 
 	return nil
+}
+
+var (
+	ErrNoReceiptDeleted = errors.New("no receipt deleted")
+)
+
+func BulkDeleteReceiptsManager(
+	tenantID uuid.UUID,
+	userID uuid.UUID,
+	ids []uuid.UUID,
+) (int64, error) {
+
+	if tenantID == uuid.Nil || len(ids) == 0 {
+		return 0, errors.New("invalid request")
+	}
+
+	deleted, err := repository.BulkDeleteReceiptsByManager(
+		tenantID,
+		ids,
+	)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrNoReceiptDeleted
+		}
+		return 0, err
+	}
+
+	oldData, _ := json.Marshal(map[string]interface{}{
+		"ids": ids,
+	})
+
+	newData, _ := json.Marshal(map[string]interface{}{
+		"deleted": deleted,
+	})
+
+	audit := models.AuditTrail{
+		TenantID:  tenantID,
+		UserID:    userID,
+		Action:    "BULK_DELETE_RECEIPT",
+		TableName: "receipts",
+		RecordID:  "",
+		OldData:   string(oldData),
+		NewData:   string(newData),
+	}
+
+	_ = configs.DB.Create(&audit)
+
+	return deleted, nil
+}
+
+var ErrNoReceiptRestored = errors.New("no receipt restored")
+
+func BulkRestoreReceiptsManager(
+	tenantID uuid.UUID,
+	userID uuid.UUID,
+	receiptIDs []uuid.UUID,
+) (int64, error) {
+
+	restored, err := repository.BulkRestoreReceiptsByIDs(
+		tenantID,
+		receiptIDs,
+	)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, ErrNoReceiptRestored
+		}
+		return 0, err
+	}
+
+	// ===== AUDIT LOG =====
+	oldData, _ := json.Marshal(map[string]interface{}{
+		"ids": receiptIDs,
+	})
+
+	newData, _ := json.Marshal(map[string]interface{}{
+		"restored": restored,
+	})
+
+	audit := models.AuditTrail{
+		TenantID:  tenantID,
+		UserID:    userID,
+		Action:    "BULK_RESTORE_RECEIPT",
+		TableName: "receipts",
+		RecordID:  "",
+		OldData:   string(oldData),
+		NewData:   string(newData),
+	}
+
+	_ = configs.DB.Create(&audit)
+
+	return restored, nil
+}
+
+// internal/service/receipt_service.go
+
+var (
+	ErrNoReceiptUpdated = errors.New("no receipt updated")
+)
+
+func BulkApproveRejectReceipts(
+	tenantID uuid.UUID,
+	userID uuid.UUID,
+	ids []uuid.UUID,
+	action string,
+	auditAction string,
+) (int64, error) {
+
+	var newStatus string
+	switch action {
+	case "APPROVE":
+		newStatus = "APPROVED"
+	case "REJECT":
+		newStatus = "REJECTED"
+	default:
+		return 0, errors.New("invalid action")
+	}
+
+	tx := configs.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	result := tx.Model(&models.Receipt{}).
+		Where(
+			"id IN ? AND tenant_id = ? AND deleted_at IS NULL AND status = ?",
+			ids,
+			tenantID,
+			"PENDING",
+		).
+		Updates(map[string]interface{}{
+			"status": newStatus,
+		})
+
+	if result.Error != nil {
+		tx.Rollback()
+		return 0, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return 0, ErrNoReceiptUpdated
+	}
+
+	// audit
+	oldData, _ := json.Marshal(map[string]interface{}{
+		"ids": ids,
+	})
+
+	newData, _ := json.Marshal(map[string]interface{}{
+		"status":  newStatus,
+		"updated": result.RowsAffected,
+	})
+
+	audit := models.AuditTrail{
+		TenantID:  tenantID,
+		UserID:    userID,
+		Action:    auditAction,
+		TableName: "receipts",
+		OldData:   string(oldData),
+		NewData:   string(newData),
+	}
+
+	if err := tx.Create(&audit).Error; err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	tx.Commit()
+	return result.RowsAffected, nil
 }
