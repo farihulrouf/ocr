@@ -167,3 +167,27 @@ func DeleteReceiptByIDManager(
 
 	return nil
 }
+
+func BulkDeleteReceiptsByManager(
+	tenantID uuid.UUID,
+	ids []uuid.UUID,
+) (int64, error) {
+
+	result := configs.DB.
+		Where(`
+			id IN ?
+			AND tenant_id = ?
+			AND status = 'PENDING'
+		`, ids, tenantID).
+		Delete(&models.Receipt{})
+
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return 0, gorm.ErrRecordNotFound
+	}
+
+	return result.RowsAffected, nil
+}

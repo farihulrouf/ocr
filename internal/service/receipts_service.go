@@ -270,3 +270,31 @@ func DeleteReceiptManager(
 
 	return nil
 }
+
+var (
+	ErrNoReceiptDeleted = errors.New("no receipt deleted")
+)
+
+func BulkDeleteReceiptsManager(
+	tenantID uuid.UUID,
+	ids []uuid.UUID,
+) (int64, error) {
+
+	if tenantID == uuid.Nil || len(ids) == 0 {
+		return 0, errors.New("invalid request")
+	}
+
+	deleted, err := repository.BulkDeleteReceiptsByManager(
+		tenantID,
+		ids,
+	)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrNoReceiptDeleted
+		}
+		return 0, err
+	}
+
+	return deleted, nil
+}

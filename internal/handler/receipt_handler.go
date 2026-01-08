@@ -251,3 +251,76 @@ func DeleteReceipt(c *fiber.Ctx) error {
 		"message": "receipt deleted",
 	})
 }
+
+func BulkDeleteReceipts(c *fiber.Ctx) error {
+	tenantIDStr, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant context",
+		)
+	}
+
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusUnauthorized,
+			"invalid tenant id",
+		)
+	}
+
+	// request body
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid request body",
+		)
+	}
+
+	if len(req.IDs) == 0 {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"ids cannot be empty",
+		)
+	}
+
+	ids := make([]uuid.UUID, 0, len(req.IDs))
+	for _, idStr := range req.IDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return fiber.NewError(
+				fiber.StatusBadRequest,
+				"invalid receipt id",
+			)
+		}
+		ids = append(ids, id)
+	}
+
+	deleted, err := service.BulkDeleteReceiptsManager(
+		tenantID,
+		ids,
+	)
+	if err != nil {
+		switch err {
+		case service.ErrNoReceiptDeleted:
+			return fiber.NewError(
+				fiber.StatusNotFound,
+				err.Error(),
+			)
+		default:
+			return fiber.NewError(
+				fiber.StatusInternalServerError,
+				err.Error(),
+			)
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"deleted": deleted,
+	})
+}
