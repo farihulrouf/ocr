@@ -245,3 +245,73 @@ func BulkUpdateReceiptStatusTx(
 
 	return result.RowsAffected, nil
 }
+
+func GetAccountCategoryByID(
+	tenantID uuid.UUID,
+	categoryID uuid.UUID,
+) (*models.AccountCategory, error) {
+
+	var cat models.AccountCategory
+
+	err := configs.DB.
+		Where(`
+			id = ?
+			AND tenant_id = ?
+			AND deleted_at IS NULL
+		`, categoryID, tenantID).
+		First(&cat).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &cat, nil
+}
+
+// ambil old receipt category (untuk audit)
+func GetReceiptsCategorySnapshot(
+	tenantID uuid.UUID,
+	ids []uuid.UUID,
+) ([]map[string]interface{}, error) {
+
+	var rows []map[string]interface{}
+
+	err := configs.DB.
+		Model(&models.Receipt{}).
+		Select("id, account_category_id").
+		Where(`
+			tenant_id = ?
+			AND id IN ?
+			AND deleted_at IS NULL
+		`, tenantID, ids).
+		Find(&rows).Error
+
+	return rows, err
+}
+
+// bulk update
+func BulkUpdateReceiptCategory(
+	tenantID uuid.UUID,
+	receiptIDs []uuid.UUID,
+	categoryID uuid.UUID,
+) (int64, error) {
+
+	result := configs.DB.
+		Model(&models.Receipt{}).
+		Where(`
+			tenant_id = ?
+			AND id IN ?
+			AND deleted_at IS NULL
+		`, tenantID, receiptIDs).
+		Update("account_category_id", categoryID)
+
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return 0, gorm.ErrRecordNotFound
+	}
+
+	return result.RowsAffected, nil
+}

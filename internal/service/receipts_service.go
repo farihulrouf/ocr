@@ -444,3 +444,80 @@ func BulkApproveRejectReceipts(
 	tx.Commit()
 	return result.RowsAffected, nil
 }
+
+var (
+	ErrInvalidBulkCategoryRequest = errors.New("invalid bulk update category request")
+	//ErrNoReceiptUpdated           = errors.New("no receipt updated")
+	ErrCategoryNotBelongTenant = errors.New("category does not belong to tenant")
+	ErrForbidden               = errors.New("forbidden")
+)
+
+func BulkUpdateReceiptCategory(
+	tenantID uuid.UUID,
+	userID uuid.UUID,
+	role string,
+	receiptIDs []uuid.UUID,
+	categoryID uuid.UUID,
+) (int64, error) {
+
+	// 🔐 role check
+	if role != "ADMIN" && role != "MANAGER" {
+		return 0, ErrForbidden
+	}
+
+	if len(receiptIDs) == 0 || categoryID == uuid.Nil {
+		return 0, ErrInvalidBulkCategoryRequest
+	}
+
+	// ✅ category harus milik tenant
+	_, err := repository.GetAccountCategoryByID(tenantID, categoryID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, ErrCategoryNotBelongTenant
+		}
+		return 0, err
+	}
+
+	// 📸 ambil OLD data
+	oldSnapshot, err := repository.GetReceiptsCategorySnapshot(
+		tenantID,
+		receiptIDs,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	// 🔄 update
+	updated, err := repository.BulkUpdateReceiptCategory(
+		tenantID,
+		receiptIDs,
+		categoryID,
+	)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, ErrNoReceiptUpdated
+		}
+		return 0, err
+	}
+
+	// 🧾 audit trail (1 row untuk bulk)
+	oldJSON, _ := json.Marshal(oldSnapshot)
+	newJSON, _ := json.Marshal(map[string]interface{}{
+		"new_category_id": categoryID,
+		"updated_count":   updated,
+	})
+
+	audit := models.AuditTrail{
+		TenantID:  tenantID,
+		UserID:    userID,
+		Action:    "BULK_UPDATE_RECEIPT_CATEGORY",
+		TableName: "receipts",
+		RecordID:  "bulk",
+		OldData:   string(oldJSON),
+		NewData:   string(newJSON),
+	}
+
+	configs.DB.Create(&audit)
+
+	return updated, nil
+}

@@ -516,3 +516,59 @@ func bulkApproveReject(c *fiber.Ctx, action string) error {
 		"updated": updated,
 	})
 }
+
+func BulkUpdateReceiptCategory(c *fiber.Ctx) error {
+
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	userID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string)
+
+	var req struct {
+		IDs   []string `json:"ids"`
+		CatID string   `json:"cat_id"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
+	}
+
+	categoryID, err := uuid.Parse(req.CatID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid category id")
+	}
+
+	var ids []uuid.UUID
+	for _, s := range req.IDs {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid receipt id")
+		}
+		ids = append(ids, id)
+	}
+
+	updated, err := service.BulkUpdateReceiptCategory(
+		tenantID,
+		userID,
+		role,
+		ids,
+		categoryID,
+	)
+
+	if err != nil {
+		switch err {
+		case service.ErrForbidden:
+			return fiber.NewError(fiber.StatusForbidden, err.Error())
+		case service.ErrCategoryNotBelongTenant:
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		case service.ErrNoReceiptUpdated:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		default:
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"updated": updated,
+	})
+}

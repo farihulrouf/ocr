@@ -67,3 +67,8 @@ type ReceiptDetailItem struct {
 	TaxAmount   int64  `json:"tax_amount"`
 	TaxRate     int    `json:"tax_rate"`
 }
+
+type BulkUpdateCategoryRequest struct {
+	IDs   []uuid.UUID `json:"ids"`
+	CatID uuid.UUID   `json:"cat_id"`
+}
