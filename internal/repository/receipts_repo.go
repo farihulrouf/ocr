@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
 	"time"
@@ -314,4 +315,16 @@ func BulkUpdateReceiptCategory(
 	}
 
 	return result.RowsAffected, nil
+}
+
+type ReceiptItemRepository interface {
+	FindByID(ctx context.Context, id uint) (*models.ReceiptItem, error)
+	Update(ctx context.Context, item *models.ReceiptItem) error
+}
+
+func CreateReceiptItem(
+	ctx context.Context,
+	item *models.ReceiptItem,
+) error {
+	return configs.DB.WithContext(ctx).Create(item).Error
 }

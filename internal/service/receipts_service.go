@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"ocr-saas-backend/configs"
@@ -520,4 +521,34 @@ func BulkUpdateReceiptCategory(
 	configs.DB.Create(&audit)
 
 	return updated, nil
+}
+
+func AddReceiptItem(
+	ctx context.Context,
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+	name string,
+	price int64,
+) (uint, error) {
+
+	// 1️⃣ pastikan receipt ada & milik tenant
+	_, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	if err != nil {
+		return 0, ErrReceiptNotFound
+	}
+
+	// 2️⃣ create item
+	item := &models.ReceiptItem{
+		ReceiptID:   receiptID,
+		Description: name,
+		Amount:      price,
+		TaxAmount:   0,
+		TaxRate:     0,
+	}
+
+	if err := repository.CreateReceiptItem(ctx, item); err != nil {
+		return 0, err
+	}
+
+	return item.ID, nil
 }

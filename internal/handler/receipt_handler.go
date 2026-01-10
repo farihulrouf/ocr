@@ -572,3 +572,46 @@ func BulkUpdateReceiptCategory(c *fiber.Ctx) error {
 		"updated": updated,
 	})
 }
+
+func AddReceiptItem(c *fiber.Ctx) error {
+	// tenant
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	// receipt id
+	receiptID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid receipt id")
+	}
+
+	// body
+	var req struct {
+		Name  string `json:"name"`
+		Price int64  `json:"price"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
+	}
+
+	if req.Name == "" || req.Price <= 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "name and price required")
+	}
+
+	itemID, err := service.AddReceiptItem(
+		c.Context(),
+		tenantID,
+		receiptID,
+		req.Name,
+		req.Price,
+	)
+	if err != nil {
+		if err == service.ErrReceiptNotFound {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"item_id": itemID,
+	})
+}

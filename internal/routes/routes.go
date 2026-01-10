@@ -102,6 +102,8 @@ func SetupRoutes(app *fiber.App) {
 	manager.Post("/receipt/bulk/approve", handler.BulkApproveReceipts)
 	manager.Post("/receipt/bulk/reject", handler.BulkRejectReceipts)
 	manager.Post("/receipt/bulk/update-category", handler.BulkUpdateReceiptCategory)
+	manager.Post("/receipt/:id/items", handler.AddReceiptItem)
+
 }
 
 /*
