@@ -615,3 +615,59 @@ func AddReceiptItem(c *fiber.Ctx) error {
 		"item_id": itemID,
 	})
 }
+
+func UpdateReceiptItem(c *fiber.Ctx) error {
+	// 1. Path param: itemId
+	itemIDParam := c.Params("itemId")
+
+	itemID, err := strconv.ParseUint(itemIDParam, 10, 64)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid item id",
+		)
+	}
+
+	// 2. Request body
+	var req struct {
+		Price int64 `json:"price"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid request body",
+		)
+	}
+
+	if req.Price <= 0 {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"price must be greater than zero",
+		)
+	}
+
+	// 3. Call service
+	if err := service.UpdateReceiptItem(
+		c.Context(),
+		uint(itemID),
+		req.Price,
+	); err != nil {
+
+		switch err {
+		case service.ErrItemNotFound:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+
+		case service.ErrReceiptNotEditable:
+			return fiber.NewError(fiber.StatusConflict, err.Error())
+
+		default:
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	// 4. Response
+	return c.JSON(fiber.Map{
+		"message": "Item updated",
+	})
+}

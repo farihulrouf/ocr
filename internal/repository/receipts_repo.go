@@ -328,3 +328,42 @@ func CreateReceiptItem(
 ) error {
 	return configs.DB.WithContext(ctx).Create(item).Error
 }
+
+type receiptItemRepo struct{}
+
+func NewReceiptItemRepository() ReceiptItemRepository {
+	return &receiptItemRepo{}
+}
+
+func (r *receiptItemRepo) FindByID(
+	ctx context.Context,
+	id uint,
+) (*models.ReceiptItem, error) {
+
+	var item models.ReceiptItem
+	err := configs.DB.
+		WithContext(ctx).
+		Preload("Receipt").
+		First(&item, id).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func (r *receiptItemRepo) Update(
+	ctx context.Context,
+	item *models.ReceiptItem,
+) error {
+
+	return configs.DB.
+		WithContext(ctx).
+		Model(&models.ReceiptItem{}).
+		Where("id = ?", item.ID).
+		Updates(map[string]interface{}{
+			"amount":     item.Amount,
+			"updated_at": gorm.Expr("NOW()"),
+		}).Error
+}

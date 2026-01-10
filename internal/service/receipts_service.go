@@ -160,6 +160,7 @@ func mapReceiptToDetailDTO(r *models.Receipt) dto.ReceiptDetailResponse {
 	items := make([]dto.ReceiptDetailItem, 0, len(r.LineItems))
 	for _, it := range r.LineItems {
 		items = append(items, dto.ReceiptDetailItem{
+			ID:          it.ID,
 			Description: it.Description,
 			Amount:      it.Amount,
 			TaxAmount:   it.TaxAmount,
@@ -551,4 +552,41 @@ func AddReceiptItem(
 	}
 
 	return item.ID, nil
+}
+
+var (
+	ErrItemNotFound       = errors.New("item not found")
+	ErrReceiptNotEditable = errors.New("receipt is not editable")
+)
+
+func UpdateReceiptItem(
+	ctx context.Context,
+	itemID uint,
+	price int64,
+) error {
+
+	if price <= 0 {
+		return errors.New("price must be greater than zero")
+	}
+
+	repo := repository.NewReceiptItemRepository()
+
+	// 1️⃣ ambil item
+	item, err := repo.FindByID(ctx, itemID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrItemNotFound
+		}
+		return err
+	}
+
+	// 2️⃣ validasi receipt status
+	if item.Receipt.Status != "PENDING" {
+		return ErrReceiptNotEditable
+	}
+
+	// 3️⃣ update price
+	item.Amount = price
+
+	return repo.Update(ctx, item)
 }

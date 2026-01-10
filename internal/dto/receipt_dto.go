@@ -62,6 +62,7 @@ type ReceiptDetailCategory struct {
 }
 
 type ReceiptDetailItem struct {
+	ID          uint   `json:"id"` // ✅ WAJIB
 	Description string `json:"description"`
 	Amount      int64  `json:"amount"`
 	TaxAmount   int64  `json:"tax_amount"`
