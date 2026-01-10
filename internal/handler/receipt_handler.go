@@ -671,3 +671,36 @@ func UpdateReceiptItem(c *fiber.Ctx) error {
 		"message": "Item updated",
 	})
 }
+
+func DeleteReceiptItem(c *fiber.Ctx) error {
+
+	itemID, err := strconv.ParseUint(c.Params("itemId"), 10, 64)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid item id",
+		)
+	}
+
+	err = service.DeleteReceiptItem(
+		c.Context(),
+		uint(itemID),
+	)
+
+	if err != nil {
+		switch err {
+		case service.ErrItemNotFound:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+
+		case service.ErrReceiptNotEditable:
+			return fiber.NewError(fiber.StatusConflict, err.Error())
+
+		default:
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Item deleted",
+	})
+}

@@ -590,3 +590,28 @@ func UpdateReceiptItem(
 
 	return repo.Update(ctx, item)
 }
+
+func DeleteReceiptItem(
+	ctx context.Context,
+	itemID uint,
+) error {
+
+	repo := repository.NewReceiptItemRepository()
+
+	// 1️⃣ ambil item
+	item, err := repo.FindByID(ctx, itemID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrItemNotFound
+		}
+		return err
+	}
+
+	// 2️⃣ validasi receipt status
+	if item.Receipt.Status != "PENDING" {
+		return ErrReceiptNotEditable
+	}
+
+	// 3️⃣ delete
+	return repo.Delete(ctx, itemID)
+}
