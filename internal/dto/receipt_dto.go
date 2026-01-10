@@ -62,8 +62,22 @@ type ReceiptDetailCategory struct {
 }
 
 type ReceiptDetailItem struct {
+	ID          uint   `json:"id"` // ✅ WAJIB
 	Description string `json:"description"`
 	Amount      int64  `json:"amount"`
 	TaxAmount   int64  `json:"tax_amount"`
 	TaxRate     int    `json:"tax_rate"`
+}
+
+type BulkUpdateCategoryRequest struct {
+	IDs   []uuid.UUID `json:"ids"`
+	CatID uuid.UUID   `json:"cat_id"`
+}
+
+// dto/update_receipt_item.go
+type UpdateReceiptItemRequest struct {
+	Description *string `json:"description"`
+	Amount      *int64  `json:"amount"`
+	TaxAmount   *int64  `json:"tax_amount"`
+	TaxRate     *int    `json:"tax_rate"`
 }

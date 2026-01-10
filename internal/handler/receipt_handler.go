@@ -516,3 +516,191 @@ func bulkApproveReject(c *fiber.Ctx, action string) error {
 		"updated": updated,
 	})
 }
+
+func BulkUpdateReceiptCategory(c *fiber.Ctx) error {
+
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	userID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string)
+
+	var req struct {
+		IDs   []string `json:"ids"`
+		CatID string   `json:"cat_id"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
+	}
+
+	categoryID, err := uuid.Parse(req.CatID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid category id")
+	}
+
+	var ids []uuid.UUID
+	for _, s := range req.IDs {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid receipt id")
+		}
+		ids = append(ids, id)
+	}
+
+	updated, err := service.BulkUpdateReceiptCategory(
+		tenantID,
+		userID,
+		role,
+		ids,
+		categoryID,
+	)
+
+	if err != nil {
+		switch err {
+		case service.ErrForbidden:
+			return fiber.NewError(fiber.StatusForbidden, err.Error())
+		case service.ErrCategoryNotBelongTenant:
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		case service.ErrNoReceiptUpdated:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		default:
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"updated": updated,
+	})
+}
+
+func AddReceiptItem(c *fiber.Ctx) error {
+	// tenant
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	// receipt id
+	receiptID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid receipt id")
+	}
+
+	// body
+	var req struct {
+		Name  string `json:"name"`
+		Price int64  `json:"price"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid body")
+	}
+
+	if req.Name == "" || req.Price <= 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "name and price required")
+	}
+
+	itemID, err := service.AddReceiptItem(
+		c.Context(),
+		tenantID,
+		receiptID,
+		req.Name,
+		req.Price,
+	)
+	if err != nil {
+		if err == service.ErrReceiptNotFound {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"item_id": itemID,
+	})
+}
+
+func UpdateReceiptItem(c *fiber.Ctx) error {
+	// 1. Path param: itemId
+	itemIDParam := c.Params("itemId")
+
+	itemID, err := strconv.ParseUint(itemIDParam, 10, 64)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid item id",
+		)
+	}
+
+	// 2. Request body
+	var req struct {
+		Price int64 `json:"price"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid request body",
+		)
+	}
+
+	if req.Price <= 0 {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"price must be greater than zero",
+		)
+	}
+
+	// 3. Call service
+	if err := service.UpdateReceiptItem(
+		c.Context(),
+		uint(itemID),
+		req.Price,
+	); err != nil {
+
+		switch err {
+		case service.ErrItemNotFound:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+
+		case service.ErrReceiptNotEditable:
+			return fiber.NewError(fiber.StatusConflict, err.Error())
+
+		default:
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	// 4. Response
+	return c.JSON(fiber.Map{
+		"message": "Item updated",
+	})
+}
+
+func DeleteReceiptItem(c *fiber.Ctx) error {
+
+	itemID, err := strconv.ParseUint(c.Params("itemId"), 10, 64)
+	if err != nil {
+		return fiber.NewError(
+			fiber.StatusBadRequest,
+			"invalid item id",
+		)
+	}
+
+	err = service.DeleteReceiptItem(
+		c.Context(),
+		uint(itemID),
+	)
+
+	if err != nil {
+		switch err {
+		case service.ErrItemNotFound:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+
+		case service.ErrReceiptNotEditable:
+			return fiber.NewError(fiber.StatusConflict, err.Error())
+
+		default:
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Item deleted",
+	})
+}

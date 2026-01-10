@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
 	"time"
@@ -244,4 +245,209 @@ func BulkUpdateReceiptStatusTx(
 	}
 
 	return result.RowsAffected, nil
+}
+
+func GetAccountCategoryByID(
+	tenantID uuid.UUID,
+	categoryID uuid.UUID,
+) (*models.AccountCategory, error) {
+
+	var cat models.AccountCategory
+
+	err := configs.DB.
+		Where(`
+			id = ?
+			AND tenant_id = ?
+			AND deleted_at IS NULL
+		`, categoryID, tenantID).
+		First(&cat).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &cat, nil
+}
+
+// ambil old receipt category (untuk audit)
+func GetReceiptsCategorySnapshot(
+	tenantID uuid.UUID,
+	ids []uuid.UUID,
+) ([]map[string]interface{}, error) {
+
+	var rows []map[string]interface{}
+
+	err := configs.DB.
+		Model(&models.Receipt{}).
+		Select("id, account_category_id").
+		Where(`
+			tenant_id = ?
+			AND id IN ?
+			AND deleted_at IS NULL
+		`, tenantID, ids).
+		Find(&rows).Error
+
+	return rows, err
+}
+
+// bulk update
+func BulkUpdateReceiptCategory(
+	tenantID uuid.UUID,
+	receiptIDs []uuid.UUID,
+	categoryID uuid.UUID,
+) (int64, error) {
+
+	result := configs.DB.
+		Model(&models.Receipt{}).
+		Where(`
+			tenant_id = ?
+			AND id IN ?
+			AND deleted_at IS NULL
+		`, tenantID, receiptIDs).
+		Update("account_category_id", categoryID)
+
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return 0, gorm.ErrRecordNotFound
+	}
+
+	return result.RowsAffected, nil
+}
+
+type ReceiptItemRepository interface {
+	FindByID(ctx context.Context, id uint) (*models.ReceiptItem, error)
+	Update(ctx context.Context, item *models.ReceiptItem) error
+	Delete(ctx context.Context, itemID uint) error // ✅ TAMBAH INI
+}
+
+func CreateReceiptItem(
+	ctx context.Context,
+	item *models.ReceiptItem,
+) error {
+
+	return configs.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		// 1️⃣ insert item
+		if err := tx.Create(item).Error; err != nil {
+			return err
+		}
+
+		// 2️⃣ hitung ulang total receipt
+		var total int64
+		if err := tx.
+			Model(&models.ReceiptItem{}).
+			Where("receipt_id = ?", item.ReceiptID).
+			Select("COALESCE(SUM(amount),0)").
+			Scan(&total).Error; err != nil {
+			return err
+		}
+
+		// 3️⃣ update receipt.total_amount
+		return tx.
+			Model(&models.Receipt{}).
+			Where("id = ?", item.ReceiptID).
+			Update("total_amount", total).Error
+	})
+}
+
+type receiptItemRepo struct{}
+
+func NewReceiptItemRepository() ReceiptItemRepository {
+	return &receiptItemRepo{}
+}
+
+func (r *receiptItemRepo) FindByID(
+	ctx context.Context,
+	id uint,
+) (*models.ReceiptItem, error) {
+
+	var item models.ReceiptItem
+	err := configs.DB.
+		WithContext(ctx).
+		Preload("Receipt").
+		First(&item, id).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func (r *receiptItemRepo) Update(
+	ctx context.Context,
+	item *models.ReceiptItem,
+) error {
+
+	return configs.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		// 1️⃣ update item
+		if err := tx.
+			Model(&models.ReceiptItem{}).
+			Where("id = ?", item.ID).
+			Updates(map[string]interface{}{
+				"amount":     item.Amount,
+				"updated_at": gorm.Expr("NOW()"),
+			}).Error; err != nil {
+			return err
+		}
+
+		// 2️⃣ hitung ulang total receipt
+		var total int64
+		if err := tx.
+			Model(&models.ReceiptItem{}).
+			Where("receipt_id = ?", item.ReceiptID).
+			Select("COALESCE(SUM(amount),0)").
+			Scan(&total).Error; err != nil {
+			return err
+		}
+
+		// 3️⃣ update receipt.total_amount
+		return tx.
+			Model(&models.Receipt{}).
+			Where("id = ?", item.ReceiptID).
+			Update("total_amount", total).Error
+	})
+}
+
+func (r *receiptItemRepo) Delete(
+	ctx context.Context,
+	itemID uint,
+) error {
+
+	return configs.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		var item models.ReceiptItem
+
+		// 1️⃣ ambil item + receipt_id
+		if err := tx.First(&item, itemID).Error; err != nil {
+			return err
+		}
+
+		receiptID := item.ReceiptID
+
+		// 2️⃣ delete item
+		if err := tx.Delete(&models.ReceiptItem{}, itemID).Error; err != nil {
+			return err
+		}
+
+		// 3️⃣ hitung ulang total receipt
+		var total int64
+		if err := tx.
+			Model(&models.ReceiptItem{}).
+			Where("receipt_id = ?", receiptID).
+			Select("COALESCE(SUM(amount),0)").
+			Scan(&total).Error; err != nil {
+			return err
+		}
+
+		// 4️⃣ update receipt.total_amount
+		return tx.
+			Model(&models.Receipt{}).
+			Where("id = ?", receiptID).
+			Update("total_amount", total).Error
+	})
 }

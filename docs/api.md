@@ -87,12 +87,12 @@ Inti dari aplikasi: Pengolahan struk dengan AI.
 | 7 | Delete Struk | DELETE | `/receipts/:id` | - | `{"message": "Deleted"}` |
 | 8 | Bulk Delete | POST | `/receipts/bulk/delete` | `{"ids": []}` | `{"deleted": 5}` |
 | 9 | Bulk Update | POST | `/receipts/bulk/update-category`| `{"ids", "cat_id"}` | `{"updated": 5}` |
-| 10| Secure Image | GET | `/receipts/:id/image` | - | `{"url": "signed-s3-url"}` |
-| 11| Re-trigger | POST | `/receipts/:id/re-ocr` | - | `{"status": "re-processing"}` |
-| 12| Adv Search | GET | `/receipts/search/advanced`| `?min=100&cat=1` | `[results]` |
-| 13| Add Item | POST | `/receipts/:id/items` | `{"name", "price"}` | `{"item_id": 1}` |
-| 14| Update Item | PUT | `/receipts/items/:itemId`| `{"price"}` | `{"message": "Item updated"}` |
-| 15| Delete Item | DELETE | `/receipts/items/:itemId`| - | `{"message": "Item deleted"}` |
+| *10| Secure Image | GET | `/receipts/:id/image` | - | `{"url": "signed-s3-url"}` |
+| *11| Re-trigger | POST | `/receipts/:id/re-ocr` | - | `{"status": "re-processing"}` |
+| *12| Adv Search | GET | `/receipts/search/advanced`| `?min=100&cat=1` | `[results]` |
+| *13| Add Item | POST | `/receipts/:id/items` | `{"name", "price"}` | `{"item_id": 1}` |
+| 14*| Update Item | PUT | `/receipts/items/:itemId`| `{"price"}` | `{"message": "Item updated"}` |
+| 15*| Delete Item | DELETE | `/receipts/items/:itemId`| - | `{"message": "Item deleted"}` |
 
 ---
 

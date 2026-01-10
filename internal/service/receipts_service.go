@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"ocr-saas-backend/configs"
@@ -159,6 +160,7 @@ func mapReceiptToDetailDTO(r *models.Receipt) dto.ReceiptDetailResponse {
 	items := make([]dto.ReceiptDetailItem, 0, len(r.LineItems))
 	for _, it := range r.LineItems {
 		items = append(items, dto.ReceiptDetailItem{
+			ID:          it.ID,
 			Description: it.Description,
 			Amount:      it.Amount,
 			TaxAmount:   it.TaxAmount,
@@ -443,4 +445,173 @@ func BulkApproveRejectReceipts(
 
 	tx.Commit()
 	return result.RowsAffected, nil
+}
+
+var (
+	ErrInvalidBulkCategoryRequest = errors.New("invalid bulk update category request")
+	//ErrNoReceiptUpdated           = errors.New("no receipt updated")
+	ErrCategoryNotBelongTenant = errors.New("category does not belong to tenant")
+	ErrForbidden               = errors.New("forbidden")
+)
+
+func BulkUpdateReceiptCategory(
+	tenantID uuid.UUID,
+	userID uuid.UUID,
+	role string,
+	receiptIDs []uuid.UUID,
+	categoryID uuid.UUID,
+) (int64, error) {
+
+	// 🔐 role check
+	if role != "ADMIN" && role != "MANAGER" {
+		return 0, ErrForbidden
+	}
+
+	if len(receiptIDs) == 0 || categoryID == uuid.Nil {
+		return 0, ErrInvalidBulkCategoryRequest
+	}
+
+	// ✅ category harus milik tenant
+	_, err := repository.GetAccountCategoryByID(tenantID, categoryID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, ErrCategoryNotBelongTenant
+		}
+		return 0, err
+	}
+
+	// 📸 ambil OLD data
+	oldSnapshot, err := repository.GetReceiptsCategorySnapshot(
+		tenantID,
+		receiptIDs,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	// 🔄 update
+	updated, err := repository.BulkUpdateReceiptCategory(
+		tenantID,
+		receiptIDs,
+		categoryID,
+	)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return 0, ErrNoReceiptUpdated
+		}
+		return 0, err
+	}
+
+	// 🧾 audit trail (1 row untuk bulk)
+	oldJSON, _ := json.Marshal(oldSnapshot)
+	newJSON, _ := json.Marshal(map[string]interface{}{
+		"new_category_id": categoryID,
+		"updated_count":   updated,
+	})
+
+	audit := models.AuditTrail{
+		TenantID:  tenantID,
+		UserID:    userID,
+		Action:    "BULK_UPDATE_RECEIPT_CATEGORY",
+		TableName: "receipts",
+		RecordID:  "bulk",
+		OldData:   string(oldJSON),
+		NewData:   string(newJSON),
+	}
+
+	configs.DB.Create(&audit)
+
+	return updated, nil
+}
+
+func AddReceiptItem(
+	ctx context.Context,
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+	name string,
+	price int64,
+) (uint, error) {
+
+	// 1️⃣ pastikan receipt ada & milik tenant
+	_, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	if err != nil {
+		return 0, ErrReceiptNotFound
+	}
+
+	// 2️⃣ create item
+	item := &models.ReceiptItem{
+		ReceiptID:   receiptID,
+		Description: name,
+		Amount:      price,
+		TaxAmount:   0,
+		TaxRate:     0,
+	}
+
+	if err := repository.CreateReceiptItem(ctx, item); err != nil {
+		return 0, err
+	}
+
+	return item.ID, nil
+}
+
+var (
+	ErrItemNotFound       = errors.New("item not found")
+	ErrReceiptNotEditable = errors.New("receipt is not editable")
+)
+
+func UpdateReceiptItem(
+	ctx context.Context,
+	itemID uint,
+	price int64,
+) error {
+
+	if price <= 0 {
+		return errors.New("price must be greater than zero")
+	}
+
+	repo := repository.NewReceiptItemRepository()
+
+	// 1️⃣ ambil item
+	item, err := repo.FindByID(ctx, itemID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrItemNotFound
+		}
+		return err
+	}
+
+	// 2️⃣ validasi receipt status
+	if item.Receipt.Status != "PENDING" {
+		return ErrReceiptNotEditable
+	}
+
+	// 3️⃣ update price
+	item.Amount = price
+
+	return repo.Update(ctx, item)
+}
+
+func DeleteReceiptItem(
+	ctx context.Context,
+	itemID uint,
+) error {
+
+	repo := repository.NewReceiptItemRepository()
+
+	// 1️⃣ ambil item
+	item, err := repo.FindByID(ctx, itemID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrItemNotFound
+		}
+		return err
+	}
+
+	// 2️⃣ validasi receipt status
+	if item.Receipt.Status != "PENDING" {
+		return ErrReceiptNotEditable
+	}
+
+	// 3️⃣ delete
+	return repo.Delete(ctx, itemID)
 }

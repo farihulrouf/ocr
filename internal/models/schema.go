@@ -128,6 +128,7 @@ type Receipt struct {
 type ReceiptItem struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	ReceiptID   uuid.UUID `gorm:"type:uuid" json:"receipt_id"`
+	Receipt     Receipt   `gorm:"foreignKey:ReceiptID" json:"-"`
 	Description string    `json:"description"`
 	Amount      int64     `json:"amount"`
 	TaxAmount   int64     `json:"tax_amount"`
