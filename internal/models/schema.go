@@ -139,9 +139,11 @@ type ReceiptItem struct {
 
 type ExpenseReport struct {
 	Base
-	TenantID    uuid.UUID `gorm:"type:uuid" json:"tenant_id"`
-	UserID      uuid.UUID `gorm:"type:uuid" json:"user_id"`
-	User        User      `gorm:"foreignKey:UserID" json:"user"`
+	TenantID uuid.UUID `gorm:"type:uuid" json:"tenant_id"`
+	UserID   uuid.UUID `gorm:"type:uuid" json:"user_id"`
+	//User        User      `gorm:"foreignKey:UserID" json:"user"`
+	User User `gorm:"foreignKey:UserID" json:"-"`
+
 	Title       string    `json:"title"`
 	TotalAmount int64     `json:"total_amount"`
 	Status      string    `gorm:"default:'PENDING'" json:"status"`

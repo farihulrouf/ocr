@@ -4,6 +4,7 @@ import (
 	"ocr-saas-backend/internal/handler"
 	"ocr-saas-backend/internal/handler/categories"
 	"ocr-saas-backend/internal/handler/payments"
+	"ocr-saas-backend/internal/handler/reports"
 	"ocr-saas-backend/internal/handler/tax"
 	"ocr-saas-backend/internal/handler/vendors"
 	"ocr-saas-backend/middleware"
@@ -87,6 +88,14 @@ func SetupRoutes(app *fiber.App) {
 
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
 	emprole.Get("/receipt", handler.GetMyReceipts)
+	// =============================
+	// EMPLOYEE - EXPENSE REPORT
+	// =============================
+	//empReport := emprole.Group("/reports")
+	emprole.Get("/reports/", reports.GetMyReports)
+	emprole.Post("/reports/", reports.CreateReport)
+	emprole.Post("/:id/submit", reports.SubmitReport)
+
 	//Get("/receipts", handler.GetMyReceipts)
 	// =============================
 	// USAGE STATS (ini yang kamu buat)
@@ -105,6 +114,14 @@ func SetupRoutes(app *fiber.App) {
 	manager.Post("/receipt/:id/items", handler.AddReceiptItem)
 	manager.Put("/receipt/items/:itemId", handler.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", handler.DeleteReceiptItem)
+
+	// =============================
+	// MANAGER - REPORT APPROVAL
+	// =============================
+	//managerReport := manager.Group("/reports")
+	//manager.Get("/reports/", handler.GetPendingReports)
+	//managerReport.Post("/:id/approve", handler.ApproveReport)
+	//managerReport.Post("/:id/reject", handler.RejectReport)
 
 }
 
