@@ -92,3 +92,49 @@ func UpdateReport(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": "success"})
 }
+
+func GetPendingReports(c *fiber.Ctx) error {
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
+
+	data, total, err := reports.GetPendingReports(
+		tenantID, page, pageSize,
+	)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"message": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   data,
+		"meta": fiber.Map{
+			"page":      page,
+			"page_size": pageSize,
+			"total":     total,
+		},
+	})
+}
+
+func ApproveReport(c *fiber.Ctx) error {
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	reportID := uuid.MustParse(c.Params("id"))
+
+	if err := reports.ApproveReport(tenantID, reportID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"status": "success"})
+}
+
+func RejectReport(c *fiber.Ctx) error {
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	reportID := uuid.MustParse(c.Params("id"))
+
+	if err := reports.RejectReport(tenantID, reportID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"status": "success"})
+}

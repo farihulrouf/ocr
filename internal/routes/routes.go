@@ -115,6 +115,12 @@ func SetupRoutes(app *fiber.App) {
 	manager.Post("/receipt/:id/items", handler.AddReceiptItem)
 	manager.Put("/receipt/items/:itemId", handler.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", handler.DeleteReceiptItem)
+	// =============================
+	// MANAGER - REPORT APPROVAL
+	// =============================
+	manager.Get("/reports", reports.GetPendingReports)
+	manager.Post("/reports/:id/approve", reports.ApproveReport)
+	manager.Post("/reports/:id/reject", reports.RejectReport)
 
 	// =============================
 	// MANAGER - REPORT APPROVAL

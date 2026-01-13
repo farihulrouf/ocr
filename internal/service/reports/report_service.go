@@ -61,6 +61,10 @@ func SubmitReport(
 		return errors.New("report already submitted")
 	}
 
+	if len(report.Receipts) == 0 {
+		return errors.New("cannot submit empty report")
+	}
+
 	report.Status = "SUBMITTED"
 	return repo.Update(report)
 }
@@ -84,5 +88,59 @@ func UpdateReport(
 	}
 
 	report.Title = title
+	return repo.Update(report)
+}
+
+func GetPendingReports(
+	tenantID uuid.UUID,
+	page, pageSize int,
+) ([]dto.ExpenseReportResponse, int64, error) {
+
+	rows, total, err := repo.ListSubmitted(
+		tenantID, page, pageSize,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]dto.ExpenseReportResponse, 0)
+	for _, r := range rows {
+		result = append(result, ToExpenseReportResponse(r))
+	}
+
+	return result, total, nil
+}
+
+func ApproveReport(
+	tenantID, reportID uuid.UUID,
+) error {
+
+	report, err := repo.GetByID(tenantID, reportID)
+	if err != nil {
+		return err
+	}
+
+	if report.Status != "SUBMITTED" {
+		return errors.New("report is not submitted")
+	}
+
+	report.Status = "APPROVED"
+	return repo.Update(report)
+}
+
+func RejectReport(
+	tenantID, reportID uuid.UUID,
+) error {
+
+	report, err := repo.GetByID(tenantID, reportID)
+	if err != nil {
+		return err
+	}
+
+	if report.Status != "SUBMITTED" {
+		return errors.New("report is not submitted")
+	}
+
+	report.Status = "REJECTED"
 	return repo.Update(report)
 }
