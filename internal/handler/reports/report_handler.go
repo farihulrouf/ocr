@@ -70,3 +70,25 @@ func SubmitReport(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": "success"})
 }
+
+func UpdateReport(c *fiber.Ctx) error {
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	userID := uuid.MustParse(c.Locals("user_id").(string))
+	reportID := uuid.MustParse(c.Params("id"))
+
+	var body struct {
+		Title string `json:"title"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{"message": "invalid body"})
+	}
+
+	if err := reports.UpdateReport(
+		tenantID, userID, reportID, body.Title,
+	); err != nil {
+		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"status": "success"})
+}

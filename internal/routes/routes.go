@@ -94,7 +94,8 @@ func SetupRoutes(app *fiber.App) {
 	//empReport := emprole.Group("/reports")
 	emprole.Get("/reports/", reports.GetMyReports)
 	emprole.Post("/reports/", reports.CreateReport)
-	emprole.Post("/:id/submit", reports.SubmitReport)
+	emprole.Put("/reports/:id", reports.UpdateReport)
+	emprole.Post("/reports/:id/submit", reports.SubmitReport)
 
 	//Get("/receipts", handler.GetMyReceipts)
 	// =============================

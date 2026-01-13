@@ -64,3 +64,25 @@ func SubmitReport(
 	report.Status = "SUBMITTED"
 	return repo.Update(report)
 }
+
+func UpdateReport(
+	tenantID, userID, reportID uuid.UUID,
+	title string,
+) error {
+
+	report, err := repo.GetByID(tenantID, reportID)
+	if err != nil {
+		return err
+	}
+
+	if report.UserID != userID {
+		return errors.New("not owner of report")
+	}
+
+	if report.Status != "DRAFT" {
+		return errors.New("only draft can be updated")
+	}
+
+	report.Title = title
+	return repo.Update(report)
+}
