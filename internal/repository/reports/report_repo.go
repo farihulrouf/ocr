@@ -88,3 +88,32 @@ func ListPending(
 
 	return rows, total, err
 }
+
+func ListSubmitted(
+	tenantID uuid.UUID,
+	page, pageSize int,
+) ([]models.ExpenseReport, int64, error) {
+
+	var rows []models.ExpenseReport
+	var total int64
+
+	db := configs.DB.
+		Model(&models.ExpenseReport{}).
+		Where("tenant_id = ? AND status = ?", tenantID, "SUBMITTED")
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+
+	err := db.
+		Preload("User").
+		Preload("Receipts").
+		Order("created_at ASC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&rows).Error
+
+	return rows, total, err
+}
