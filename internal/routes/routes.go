@@ -88,6 +88,7 @@ func SetupRoutes(app *fiber.App) {
 
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
 	emprole.Get("/receipt", handler.GetMyReceipts)
+	emprole.Get("/receipt/:id", handler.GetMyReceiptDetail)
 	// =============================
 	// EMPLOYEE - EXPENSE REPORT
 	// =============================
