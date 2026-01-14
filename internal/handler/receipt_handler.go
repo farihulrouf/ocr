@@ -704,3 +704,26 @@ func DeleteReceiptItem(c *fiber.Ctx) error {
 		"message": "Item deleted",
 	})
 }
+
+func GetMyReceiptDetail(c *fiber.Ctx) error {
+
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	userID := uuid.MustParse(c.Locals("user_id").(string))
+	receiptID := uuid.MustParse(c.Params("id"))
+
+	result, err := service.GetMyReceiptDetail(
+		tenantID,
+		userID,
+		receiptID,
+	)
+	if err != nil {
+		switch err {
+		case service.ErrForbidden:
+			return fiber.NewError(fiber.StatusForbidden, err.Error())
+		default:
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+	}
+
+	return c.JSON(result)
+}

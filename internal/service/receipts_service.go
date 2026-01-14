@@ -6,6 +6,7 @@ import (
 	"errors"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/dto"
+	"ocr-saas-backend/internal/mapper"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository"
 	"time"
@@ -614,4 +615,27 @@ func DeleteReceiptItem(
 
 	// 3️⃣ delete
 	return repo.Delete(ctx, itemID)
+}
+
+func GetMyReceiptDetail(
+	tenantID uuid.UUID,
+	userID uuid.UUID,
+	receiptID uuid.UUID,
+) (*dto.EmployeeReceiptDetailResponse, error) {
+
+	receipt, err := repository.GetReceiptDetailByID(
+		tenantID,
+		receiptID,
+	)
+	if err != nil {
+		return nil, ErrReceiptNotFound
+	}
+
+	// 🔐 PENTING: pastikan receipt milik employee
+	if receipt.UserID != userID {
+		return nil, ErrForbidden
+	}
+
+	resp := mapper.MapReceiptToEmployeeDetailDTO(receipt)
+	return &resp, nil
 }

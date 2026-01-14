@@ -88,6 +88,7 @@ func SetupRoutes(app *fiber.App) {
 
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
 	emprole.Get("/receipt", handler.GetMyReceipts)
+	emprole.Get("/receipt/:id", handler.GetMyReceiptDetail)
 	// =============================
 	// EMPLOYEE - EXPENSE REPORT
 	// =============================
@@ -96,6 +97,7 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Post("/reports/", reports.CreateReport)
 	emprole.Put("/reports/:id", reports.UpdateReport)
 	emprole.Post("/reports/:id/submit", reports.SubmitReport)
+	emprole.Get("/reports/:id", reports.GetMyReportDetail)
 
 	//Get("/receipts", handler.GetMyReceipts)
 	// =============================

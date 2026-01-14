@@ -144,3 +144,21 @@ func RejectReport(
 	report.Status = "REJECTED"
 	return repo.Update(report)
 }
+
+func GetMyReportDetail(
+	tenantID, userID, reportID uuid.UUID,
+) (*dto.ExpenseReportResponse, error) {
+
+	report, err := repo.GetByID(tenantID, reportID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ownership check
+	if report.UserID != userID {
+		return nil, errors.New("not owner of report")
+	}
+
+	res := ToExpenseReportResponse(*report)
+	return &res, nil
+}

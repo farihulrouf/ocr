@@ -138,3 +138,24 @@ func RejectReport(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": "success"})
 }
+
+func GetMyReportDetail(c *fiber.Ctx) error {
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	userID := uuid.MustParse(c.Locals("user_id").(string))
+	reportID := uuid.MustParse(c.Params("id"))
+
+	data, err := reports.GetMyReportDetail(
+		tenantID, userID, reportID,
+	)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   data,
+	})
+}

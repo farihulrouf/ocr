@@ -6,21 +6,26 @@ import (
 	"ocr-saas-backend/internal/routes"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
-	// 1. Load .env
+	// Load .env
 	configs.LoadConfig()
 
-	// 2. Koneksi DB + Migrasi
+	// DB
 	configs.ConnectDB()
-
-	// 3. Jalankan Seeder
-	//configs.SeedDatabase(configs.DB)
 
 	app := fiber.New()
 
-	// 4. Routes
+	// ✅ CORS ALLOW ALL (DEV ONLY)
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "*",
+		AllowHeaders: "*",
+	}))
+
+	// Routes
 	routes.SetupRoutes(app)
 
 	log.Fatal(app.Listen(":8080"))

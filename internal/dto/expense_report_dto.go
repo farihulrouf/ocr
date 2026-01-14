@@ -8,7 +8,14 @@ type ExpenseReportResponse struct {
 	TotalAmount int64             `json:"total_amount"`
 	Status      string            `json:"status"`
 	CreatedAt   time.Time         `json:"created_at"`
+	User        UserResponse      `json:"user"` // ⬅️ TAMBAH
 	Receipts    []ReceiptResponse `json:"receipts"`
+}
+
+type UserResponse struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 type ReceiptResponse struct {
