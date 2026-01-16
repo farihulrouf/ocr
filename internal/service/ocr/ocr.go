@@ -6,6 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"ocr-saas-backend/configs"
@@ -17,7 +20,7 @@ import (
 
 /*
 UploadReceipt
-- hanya perintah repo
+- hanya membuat record receipt di DB
 */
 func UploadReceipt(tenantID, userID uuid.UUID, imageURL string) (*models.Receipt, error) {
 	receipt := &models.Receipt{
@@ -47,7 +50,8 @@ func PushToQueue(receiptID uuid.UUID) error {
 /*
 ProcessOCR
 - ambil receipt
-- extract text
+- extract OCR text
+- parse fields (store, total, date)
 - update DB
 */
 func ProcessOCR(receiptID uuid.UUID) error {
@@ -69,7 +73,7 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		return fmt.Errorf("file not found: %s", receipt.ImageURL)
 	}
 
-	// 2️⃣ Extract text (dummy)
+	// 2️⃣ Extract text (OCR)
 	text, err := ExtractText(receipt.ImageURL)
 	if err != nil {
 		fmt.Println("[ERROR] ExtractText failed:", err)
@@ -78,7 +82,13 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		return err
 	}
 
-	// 3️⃣ Update DB
+	// 3️⃣ Parse fields dari OCR text
+	store, total, date := ParseReceipt(text)
+	receipt.StoreName = store
+	receipt.TotalAmount = total
+	receipt.TransactionDate = date
+
+	// 4️⃣ Update DB
 	receipt.OCRText = text
 	receipt.OCRStatus = "COMPLETED"
 	receipt.Status = "COMPLETED"
@@ -89,13 +99,67 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		return err
 	}
 
-	fmt.Println("[DEBUG] OCR completed for", receiptID, "text:", text)
+	fmt.Println("[DEBUG] OCR completed for", receiptID)
 	return nil
 }
 
 /*
+ParseReceipt
+- parsing OCR text struk Jepang
+- otomatis ekstrak store_name, total_amount, transaction_date
+- TransactionDate dikembalikan sebagai *time.Time
+*/
+func ParseReceipt(text string) (storeName string, total int64, date *time.Time) {
+	lines := strings.Split(text, "\n")
+
+	// -----------------------------
+	// 1️⃣ Ambil store_name
+	// Cari baris yang mengandung kata "ショップ" atau huruf Jepang, sebelum alamat/TEL
+	// -----------------------------
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Contoh sederhana: ambil baris yang mengandung "ショップ" atau huruf kanji/kana
+		if strings.Contains(line, "ショップ") || regexp.MustCompile(`[\p{Hiragana}\p{Katakana}\p{Han}]`).MatchString(line) {
+			storeName = line
+			break
+		}
+	}
+	fmt.Println("[DEBUG] Parsed store_name:", storeName)
+
+	// -----------------------------
+	// 2️⃣ Ambil total_amount
+	// Cari pola "合計 ¥1,727" atau "合計 ¥1727"
+	// -----------------------------
+	reTotal := regexp.MustCompile(`合計\s*¥?([\d,]+)`)
+	if m := reTotal.FindStringSubmatch(text); len(m) > 1 {
+		totalStr := strings.ReplaceAll(m[1], ",", "")
+		total, _ = strconv.ParseInt(totalStr, 10, 64)
+	}
+	fmt.Println("[DEBUG] Parsed total_amount:", total)
+
+	// -----------------------------
+	// 3️⃣ Ambil transaction_date
+	// Cari pola YYYY年MM月DD (abaikan karakter tambahan seperti "目(水)")
+	// -----------------------------
+	reDate := regexp.MustCompile(`(\d{4})年(\d{1,2})月(\d{1,2})`)
+	if m := reDate.FindStringSubmatch(text); len(m) > 3 {
+		year, _ := strconv.Atoi(m[1])
+		month, _ := strconv.Atoi(m[2])
+		day, _ := strconv.Atoi(m[3])
+		d := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+		date = &d
+	}
+	fmt.Println("[DEBUG] Parsed transaction_date:", date)
+
+	return
+}
+
+/*
 ExtractText
-- dummy OCR
+- dummy OCR via docker tesseract
 */
 func ExtractText(imagePath string) (string, error) {
 	fmt.Println("cek cek cek ")
