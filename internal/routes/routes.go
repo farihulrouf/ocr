@@ -3,6 +3,7 @@ package routes
 import (
 	"ocr-saas-backend/internal/handler"
 	"ocr-saas-backend/internal/handler/categories"
+	"ocr-saas-backend/internal/handler/ocr"
 	"ocr-saas-backend/internal/handler/payments"
 	"ocr-saas-backend/internal/handler/reports"
 	"ocr-saas-backend/internal/handler/tax"
@@ -88,7 +89,11 @@ func SetupRoutes(app *fiber.App) {
 
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
 	emprole.Get("/receipt", handler.GetMyReceipts)
+
 	emprole.Get("/receipt/:id", handler.GetMyReceiptDetail)
+	emprole.Post("/reports/upload", ocr.UploadReceipt)
+	//api.Post("/ocr/receipt", handler.UploadReceipt)
+
 	// =============================
 	// EMPLOYEE - EXPENSE REPORT
 	// =============================
@@ -98,6 +103,12 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Put("/reports/:id", reports.UpdateReport)
 	emprole.Post("/reports/:id/submit", reports.SubmitReport)
 	emprole.Get("/reports/:id", reports.GetMyReportDetail)
+
+	// OCR Upload
+
+	//emprole.Post("/receipt/upload", ocr.UploadOCR)
+
+	//app.Post("/v0/api/receipts/upload", receiptHandler.UploadOCR)
 
 	//Get("/receipts", handler.GetMyReceipts)
 	// =============================
