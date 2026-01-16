@@ -22,3 +22,17 @@ func GetReceiptByID(id uuid.UUID) (*models.Receipt, error) {
 func UpdateReceipt(r *models.Receipt) error {
 	return configs.DB.Save(r).Error
 }
+
+// --- Fungsi untuk ReceiptItem ---
+
+func CreateReceiptItem(item *models.ReceiptItem) error {
+	return configs.DB.Create(item).Error
+}
+
+func CreateReceiptItems(items []models.ReceiptItem) error {
+	return configs.DB.Create(&items).Error
+}
+
+func DeleteReceiptItemsByReceiptID(receiptID uuid.UUID) error {
+	return configs.DB.Where("receipt_id = ?", receiptID).Delete(&models.ReceiptItem{}).Error
+}
