@@ -91,7 +91,7 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Get("/receipt", handler.GetMyReceipts)
 
 	emprole.Get("/receipt/:id", handler.GetMyReceiptDetail)
-	emprole.Post("/reports/upload", ocr.UploadReceipt)
+	emprole.Post("/receipt/upload", ocr.UploadReceipt)
 	//api.Post("/ocr/receipt", handler.UploadReceipt)
 
 	// =============================

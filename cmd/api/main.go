@@ -16,6 +16,7 @@ func main() {
 	// DB
 	configs.ConnectDB()
 
+	configs.ConnectRedis() // <==== wajib ini sebelum router
 	app := fiber.New()
 
 	// ✅ CORS ALLOW ALL (DEV ONLY)
