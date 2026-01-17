@@ -38,5 +38,9 @@ func UploadReceipt(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "failed to push to OCR queue"})
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "data": receipt})
+	// Hanya kembalikan ID
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"id":     receipt.ID,
+	})
 }
