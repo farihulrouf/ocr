@@ -13,6 +13,7 @@ type MyReceiptRow struct {
 	Taxation  string    `json:"taxation"`
 	Amount    int64     `json:"amount"`
 	Status    string    `json:"status"`
+	OCRStatus string    `json:"ocrstatus"`
 }
 
 type ReceiptUserInfo struct {

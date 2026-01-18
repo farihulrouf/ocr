@@ -37,6 +37,7 @@ func GetMyReceipts(
 			StoreName: r.StoreName,
 			Amount:    r.TotalAmount,
 			Status:    r.Status,
+			OCRStatus: r.OCRStatus,
 		}
 
 		// date
