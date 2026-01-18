@@ -26,6 +26,8 @@ func main() {
 		AllowHeaders: "*",
 	}))
 
+	app.Static("/uploads", "./uploads") // <==== ini tambahan
+
 	// Routes
 	routes.SetupRoutes(app)
 
