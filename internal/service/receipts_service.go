@@ -234,7 +234,7 @@ func ConfirmReceipt(
 	}
 
 	// 2️⃣ validasi status
-	if receipt.Status != "PENDING" {
+	if receipt.Status != "PROCESSING" {
 		return ErrReceiptAlreadyFinal
 	}
 
@@ -560,19 +560,13 @@ var (
 	ErrReceiptNotEditable = errors.New("receipt is not editable")
 )
 
-func UpdateReceiptItem(
-	ctx context.Context,
-	itemID uint,
-	price int64,
-) error {
-
+func UpdateReceiptItem(ctx context.Context, itemID uint, price int64, userID uuid.UUID) error {
 	if price <= 0 {
 		return errors.New("price must be greater than zero")
 	}
 
 	repo := repository.NewReceiptItemRepository()
 
-	// 1️⃣ ambil item
 	item, err := repo.FindByID(ctx, itemID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -581,12 +575,15 @@ func UpdateReceiptItem(
 		return err
 	}
 
-	// 2️⃣ validasi receipt status
-	if item.Receipt.Status != "PENDING" {
+	// Cek kalau employee, hanya bisa update miliknya
+	if item.Receipt.UserID != userID {
 		return ErrReceiptNotEditable
 	}
 
-	// 3️⃣ update price
+	if item.Receipt.Status != "PROCESSING" {
+		return ErrReceiptNotEditable
+	}
+
 	item.Amount = price
 
 	return repo.Update(ctx, item)
@@ -609,7 +606,7 @@ func DeleteReceiptItem(
 	}
 
 	// 2️⃣ validasi receipt status
-	if item.Receipt.Status != "PENDING" {
+	if item.Receipt.Status != "PROCESSING" {
 		return ErrReceiptNotEditable
 	}
 
@@ -638,4 +635,29 @@ func GetMyReceiptDetail(
 
 	resp := mapper.MapReceiptToEmployeeDetailDTO(receipt)
 	return &resp, nil
+}
+
+func UpdateReceipt(
+	tenantID, receiptID uuid.UUID,
+	storeName string,
+	date *time.Time,
+	total *int64,
+) error {
+
+	receipt, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	if err != nil {
+		return ErrReceiptNotFound
+	}
+
+	if receipt.Status != "PROCESSING" {
+		return ErrReceiptAlreadyFinal
+	}
+
+	return repository.UpdateReceiptByID(
+		tenantID,
+		receiptID,
+		storeName,
+		date,
+		total,
+	)
 }

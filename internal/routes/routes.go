@@ -92,6 +92,12 @@ func SetupRoutes(app *fiber.App) {
 
 	emprole.Get("/receipt/:id", handler.GetMyReceiptDetail)
 	emprole.Post("/receipt/upload", ocr.UploadReceipt)
+	emprole.Put("/receipt/:id", handler.UpdateReceipt)
+	//emprole.Put("/receipt/:id", handler.ConfirmReceipt)
+	emprole.Delete("/receipt/:id", handler.DeleteReceipt)
+	emprole.Post("/receipt/:id/items", handler.AddReceiptItem)
+	emprole.Put("/receipt/items/:itemId", handler.UpdateReceiptItem)
+
 	//api.Post("/ocr/receipt", handler.UploadReceipt)
 
 	// =============================
@@ -119,7 +125,7 @@ func SetupRoutes(app *fiber.App) {
 	manager.Get("/receipt", handler.GetAllReceipts)
 	manager.Get("/receipt/:id", handler.GetReceiptDetail)
 	manager.Put("/receipt/:id", handler.ConfirmReceipt)
-	manager.Delete("/receipt/:id", handler.DeleteReceipt)
+	//manager.Delete("/receipt/:id", handler.DeleteReceipt)
 	manager.Post("/receipt/bulk/delete", handler.BulkDeleteReceipts)
 	manager.Post("/receipt/bulk/restore", handler.BulkRestoreReceipts)
 	manager.Post("/receipt/bulk/approve", handler.BulkApproveReceipts)

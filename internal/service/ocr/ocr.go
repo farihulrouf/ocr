@@ -3,6 +3,9 @@ package ocr
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"ocr-saas-backend/configs"
@@ -132,53 +135,66 @@ func ProcessOCRString(receiptID string) error {
 /*
 saveReceiptItems - simpan items ke tabel receipt_items
 */
-func saveReceiptItems(receiptID uuid.UUID, items []string, subtotal int64, tax int64) {
-	fmt.Printf("[DEBUG] Saving %d items for receipt %s\n", len(items), receiptID)
+func saveReceiptItems(
+	receiptID uuid.UUID,
+	items []string,
+	subtotal int64,
+	tax int64,
+) {
+	fmt.Printf("[DEBUG][ITEM] Saving %d items for receipt %s\n", len(items), receiptID)
 
-	// Hapus items lama jika ada
-	/*if err := ocr.DeleteReceiptItemsByReceiptID(receiptID); err != nil {
-		fmt.Printf("[WARNING] Failed to delete old items: %v\n", err)
-	}
-
-	// Hitung rata-rata tax rate jika ada subtotal dan tax
+	// hitung tax rate global (jepang style)
 	taxRate := 0
 	if subtotal > 0 && tax > 0 {
 		taxRate = int(float64(tax) / float64(subtotal) * 100)
-		fmt.Printf("[DEBUG] Calculated tax rate: %d%%\n", taxRate)
 	}
 
-	// Parse dan simpan setiap item
-	var receiptItems []models.ReceiptItem
-	for i, itemStr := range items {
-		description, amount := parseItemLine(itemStr)
-
-		// Hitung tax amount per item
-		taxAmount := int64(0)
-		if taxRate > 0 && amount > 0 {
-			// Asumsi tax termasuk dalam amount (Japanese style)
-			taxAmount = amount - (amount * 100 / int64(100+taxRate))
+	for i, line := range items {
+		desc, amount, ok := parseItemLine(line)
+		if !ok {
+			fmt.Printf("[WARN][ITEM] skip unparsable line: %s\n", line)
+			continue
 		}
 
-		receiptItem := models.ReceiptItem{
+		// hitung tax per item (asumsi tax inclusive)
+		itemTax := int64(0)
+		if taxRate > 0 {
+			itemTax = amount - (amount * 100 / int64(100+taxRate))
+		}
+
+		item := &models.ReceiptItem{
 			ReceiptID:   receiptID,
-			Description: description,
+			Description: desc,
 			Amount:      amount,
-			TaxAmount:   taxAmount,
+			TaxAmount:   itemTax,
 			TaxRate:     taxRate,
 		}
 
-		receiptItems = append(receiptItems, receiptItem)
-		fmt.Printf("  Item %d: %s - ¥%d (Tax: ¥%d, Rate: %d%%)\n",
-			i+1, description, amount, taxAmount, taxRate)
+		if err := ocr.CreateReceiptItem(item); err != nil {
+			fmt.Printf("[ERROR][ITEM] failed save item %d: %v\n", i+1, err)
+			continue
+		}
+
+		fmt.Printf(
+			"[DEBUG][ITEM] saved #%d | %s | ¥%d | tax ¥%d (%d%%)\n",
+			i+1, desc, amount, itemTax, taxRate,
+		)
+	}
+}
+
+func parseItemLine(line string) (description string, amount int64, ok bool) {
+	re := regexp.MustCompile(`(.+?)\s*¥\s*([\d,]+)`)
+	m := re.FindStringSubmatch(line)
+	if len(m) < 3 {
+		return "", 0, false
 	}
 
-	// Simpan ke database
-	if len(receiptItems) > 0 {
-		if err := ocr.CreateReceiptItems(receiptItems); err != nil {
-			fmt.Printf("[ERROR] Failed to save receipt items: %v\n", err)
-		} else {
-			fmt.Printf("[DEBUG] Successfully saved %d receipt items\n", len(receiptItems))
-		}
+	amountStr := strings.ReplaceAll(m[2], ",", "")
+	amount, err := strconv.ParseInt(amountStr, 10, 64)
+	if err != nil {
+		return "", 0, false
 	}
-	*/
+
+	description = strings.TrimSpace(m[1])
+	return description, amount, true
 }
