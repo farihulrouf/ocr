@@ -116,13 +116,18 @@ type Receipt struct {
 	AccountCategoryID *uuid.UUID       `gorm:"type:uuid" json:"account_category_id"`
 	AccountCategory   *AccountCategory `gorm:"foreignKey:AccountCategoryID" json:"account_category"`
 	ImageURL          string           `json:"image_url"`
-	Status            string           `gorm:"default:'PENDING'" json:"status"`
-	StoreName         string           `json:"store_name"`
-	TransactionDate   *time.Time       `json:"transaction_date"`
-	TotalAmount       int64            `json:"total_amount"`
-	TaxRegistrationID string           `json:"tax_id"`
-	IsQualified       bool             `gorm:"default:false" json:"is_qualified"`
-	LineItems         []ReceiptItem    `gorm:"foreignKey:ReceiptID" json:"line_items"` // RELASI KE ITEMS
+
+	// 🔥 TAMBAHAN INI
+	OCRText   string `gorm:"type:text" json:"ocr_text"`
+	OCRStatus string `gorm:"default:'PROCESSING'" json:"ocr_status"`
+
+	Status            string        `gorm:"default:'PENDING'" json:"status"`
+	StoreName         string        `json:"store_name"`
+	TransactionDate   *time.Time    `json:"transaction_date"`
+	TotalAmount       int64         `json:"total_amount"`
+	TaxRegistrationID string        `json:"tax_id"`
+	IsQualified       bool          `gorm:"default:false" json:"is_qualified"`
+	LineItems         []ReceiptItem `gorm:"foreignKey:ReceiptID" json:"line_items"` // RELASI KE ITEMS
 }
 
 type ReceiptItem struct {

@@ -137,7 +137,7 @@ func ConfirmReceiptByID(
 		Where(`
 			id = ? 
 			AND tenant_id = ?
-			AND status = 'PENDING'
+			AND status = 'PROCESSING'
 		`, receiptID, tenantID).
 		Updates(map[string]interface{}{
 			"total_amount":     total,
@@ -450,4 +450,64 @@ func (r *receiptItemRepo) Delete(
 			Where("id = ?", receiptID).
 			Update("total_amount", total).Error
 	})
+}
+
+func UpdateReceiptByID(
+	tenantID, receiptID uuid.UUID,
+	storeName string,
+	date *time.Time,
+	total *int64,
+) error {
+
+	updates := map[string]interface{}{}
+
+	if storeName != "" {
+		updates["store_name"] = storeName
+	}
+	if date != nil {
+		updates["transaction_date"] = *date
+	}
+	if total != nil {
+		updates["total_amount"] = *total
+	}
+
+	return configs.DB.
+		Model(&models.Receipt{}).
+		Where("id = ? AND tenant_id = ? AND status = 'DRAFT'", receiptID, tenantID).
+		Updates(updates).
+		Error
+}
+
+func IsReceiptEditable(
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+) (bool, error) {
+
+	type result struct {
+		Status       string
+		ReportStatus *string
+	}
+
+	var r result
+
+	err := configs.DB.
+		Table("receipts r").
+		Select("r.status, er.status as report_status").
+		Joins("LEFT JOIN expense_reports er ON er.id = r.report_id").
+		Where("r.id = ? AND r.tenant_id = ?", receiptID, tenantID).
+		Scan(&r).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	if r.Status != "DRAFT" {
+		return false, nil
+	}
+
+	if r.ReportStatus != nil && *r.ReportStatus != "DRAFT" {
+		return false, nil
+	}
+
+	return true, nil
 }

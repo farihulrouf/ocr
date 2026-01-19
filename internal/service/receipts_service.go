@@ -37,6 +37,7 @@ func GetMyReceipts(
 			StoreName: r.StoreName,
 			Amount:    r.TotalAmount,
 			Status:    r.Status,
+			OCRStatus: r.OCRStatus,
 		}
 
 		// date
@@ -232,9 +233,8 @@ func ConfirmReceipt(
 		}
 		return err
 	}
-
 	// 2️⃣ validasi status
-	if receipt.Status != "PENDING" {
+	if receipt.Status != "PROCESSING" && receipt.Status != "DRAFT" {
 		return ErrReceiptAlreadyFinal
 	}
 
@@ -560,19 +560,13 @@ var (
 	ErrReceiptNotEditable = errors.New("receipt is not editable")
 )
 
-func UpdateReceiptItem(
-	ctx context.Context,
-	itemID uint,
-	price int64,
-) error {
-
+func UpdateReceiptItem(ctx context.Context, itemID uint, name string, price int64, userID uuid.UUID) error {
 	if price <= 0 {
 		return errors.New("price must be greater than zero")
 	}
 
 	repo := repository.NewReceiptItemRepository()
 
-	// 1️⃣ ambil item
 	item, err := repo.FindByID(ctx, itemID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -581,12 +575,31 @@ func UpdateReceiptItem(
 		return err
 	}
 
-	// 2️⃣ validasi receipt status
-	if item.Receipt.Status != "PENDING" {
+	// Cek kalau employee, hanya bisa update miliknya
+	if item.Receipt.UserID != userID {
 		return ErrReceiptNotEditable
 	}
 
-	// 3️⃣ update price
+	// Cek status: hanya DRAFT bisa diupdate
+	if item.Receipt.Status != "DRAFT" {
+		return ErrReceiptNotEditable
+	}
+
+	// ✨ Cek report status
+	if item.Receipt.ReportID != nil {
+		var report models.ExpenseReport
+		if err := configs.DB.First(&report, "id = ?", *item.Receipt.ReportID).Error; err != nil {
+			return err
+		}
+		if report.Status != "DRAFT" {
+			return ErrReceiptNotEditable // report sudah submitted
+		}
+	}
+
+	// Update fields
+	if name != "" {
+		item.Description = name
+	}
 	item.Amount = price
 
 	return repo.Update(ctx, item)
@@ -609,7 +622,7 @@ func DeleteReceiptItem(
 	}
 
 	// 2️⃣ validasi receipt status
-	if item.Receipt.Status != "PENDING" {
+	if item.Receipt.Status != "PROCESSING" {
 		return ErrReceiptNotEditable
 	}
 
@@ -638,4 +651,28 @@ func GetMyReceiptDetail(
 
 	resp := mapper.MapReceiptToEmployeeDetailDTO(receipt)
 	return &resp, nil
+}
+
+func UpdateReceipt(
+	tenantID, receiptID uuid.UUID,
+	storeName string,
+	date *time.Time,
+	total *int64,
+) error {
+
+	ok, err := repository.IsReceiptEditable(tenantID, receiptID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrReceiptAlreadyFinal
+	}
+
+	return repository.UpdateReceiptByID(
+		tenantID,
+		receiptID,
+		storeName,
+		date,
+		total,
+	)
 }

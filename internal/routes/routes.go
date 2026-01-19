@@ -3,6 +3,7 @@ package routes
 import (
 	"ocr-saas-backend/internal/handler"
 	"ocr-saas-backend/internal/handler/categories"
+	"ocr-saas-backend/internal/handler/ocr"
 	"ocr-saas-backend/internal/handler/payments"
 	"ocr-saas-backend/internal/handler/reports"
 	"ocr-saas-backend/internal/handler/tax"
@@ -88,7 +89,17 @@ func SetupRoutes(app *fiber.App) {
 
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
 	emprole.Get("/receipt", handler.GetMyReceipts)
+
 	emprole.Get("/receipt/:id", handler.GetMyReceiptDetail)
+	emprole.Post("/receipt/upload", ocr.UploadReceipt)
+	emprole.Put("/receipt/:id", handler.UpdateReceipt)
+	//emprole.Put("/receipt/:id", handler.ConfirmReceipt)
+	emprole.Delete("/receipt/:id", handler.DeleteReceipt)
+	emprole.Post("/receipt/:id/items", handler.AddReceiptItem)
+	emprole.Put("/receipt/items/:itemId", handler.UpdateReceiptItem)
+
+	//api.Post("/ocr/receipt", handler.UploadReceipt)
+
 	// =============================
 	// EMPLOYEE - EXPENSE REPORT
 	// =============================
@@ -97,7 +108,15 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Post("/reports/", reports.CreateReport)
 	emprole.Put("/reports/:id", reports.UpdateReport)
 	emprole.Post("/reports/:id/submit", reports.SubmitReport)
+
+	emprole.Post("/reports/:id/receipts", reports.AddReceiptsToReport)
 	emprole.Get("/reports/:id", reports.GetMyReportDetail)
+
+	// OCR Upload
+
+	//emprole.Post("/receipt/upload", ocr.UploadOCR)
+
+	//app.Post("/v0/api/receipts/upload", receiptHandler.UploadOCR)
 
 	//Get("/receipts", handler.GetMyReceipts)
 	// =============================
@@ -108,7 +127,7 @@ func SetupRoutes(app *fiber.App) {
 	manager.Get("/receipt", handler.GetAllReceipts)
 	manager.Get("/receipt/:id", handler.GetReceiptDetail)
 	manager.Put("/receipt/:id", handler.ConfirmReceipt)
-	manager.Delete("/receipt/:id", handler.DeleteReceipt)
+	//manager.Delete("/receipt/:id", handler.DeleteReceipt)
 	manager.Post("/receipt/bulk/delete", handler.BulkDeleteReceipts)
 	manager.Post("/receipt/bulk/restore", handler.BulkRestoreReceipts)
 	manager.Post("/receipt/bulk/approve", handler.BulkApproveReceipts)

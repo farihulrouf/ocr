@@ -617,59 +617,56 @@ func AddReceiptItem(c *fiber.Ctx) error {
 }
 
 func UpdateReceiptItem(c *fiber.Ctx) error {
-	// 1. Path param: itemId
 	itemIDParam := c.Params("itemId")
-
 	itemID, err := strconv.ParseUint(itemIDParam, 10, 64)
 	if err != nil {
-		return fiber.NewError(
-			fiber.StatusBadRequest,
-			"invalid item id",
-		)
+		return fiber.NewError(fiber.StatusBadRequest, "invalid item id")
 	}
 
-	// 2. Request body
 	var req struct {
-		Price int64 `json:"price"`
+		Name  string `json:"name"`  // tambahkan nama item
+		Price int64  `json:"price"` // wajib
 	}
 
 	if err := c.BodyParser(&req); err != nil {
-		return fiber.NewError(
-			fiber.StatusBadRequest,
-			"invalid request body",
-		)
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
 	if req.Price <= 0 {
-		return fiber.NewError(
-			fiber.StatusBadRequest,
-			"price must be greater than zero",
-		)
+		return fiber.NewError(fiber.StatusBadRequest, "price must be greater than zero")
 	}
 
-	// 3. Call service
+	// Ambil user_id dari context Fiber
+	userIDStr := c.Locals("user_id")
+	if userIDStr == nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "user_id missing in context")
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid user_id")
+	}
+
+	// Panggil service
 	if err := service.UpdateReceiptItem(
 		c.Context(),
 		uint(itemID),
+		req.Name,
 		req.Price,
+		userID,
 	); err != nil {
 
 		switch err {
 		case service.ErrItemNotFound:
 			return fiber.NewError(fiber.StatusNotFound, err.Error())
-
 		case service.ErrReceiptNotEditable:
 			return fiber.NewError(fiber.StatusConflict, err.Error())
-
 		default:
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 	}
 
-	// 4. Response
-	return c.JSON(fiber.Map{
-		"message": "Item updated",
-	})
+	return c.JSON(fiber.Map{"message": "Item updated"})
 }
 
 func DeleteReceiptItem(c *fiber.Ctx) error {
@@ -726,4 +723,41 @@ func GetMyReceiptDetail(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+func UpdateReceipt(c *fiber.Ctx) error {
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	receiptID := uuid.MustParse(c.Params("id"))
+
+	var req struct {
+		StoreName string `json:"store_name"`
+		Date      string `json:"date"`
+		Total     *int64 `json:"total"` // optional
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(400, "invalid body")
+	}
+
+	var txDate *time.Time
+	if req.Date != "" {
+		d, err := time.Parse("2006-01-02", req.Date)
+		if err != nil {
+			return fiber.NewError(400, "invalid date")
+		}
+		txDate = &d
+	}
+
+	err := service.UpdateReceipt(
+		tenantID,
+		receiptID,
+		req.StoreName,
+		txDate,
+		req.Total,
+	)
+	if err != nil {
+		return fiber.NewError(400, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"status": "updated"})
 }

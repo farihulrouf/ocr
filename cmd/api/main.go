@@ -16,6 +16,7 @@ func main() {
 	// DB
 	configs.ConnectDB()
 
+	configs.ConnectRedis() // <==== wajib ini sebelum router
 	app := fiber.New()
 
 	// ✅ CORS ALLOW ALL (DEV ONLY)
@@ -24,6 +25,8 @@ func main() {
 		AllowMethods: "*",
 		AllowHeaders: "*",
 	}))
+
+	app.Static("/uploads", "./uploads") // <==== ini tambahan
 
 	// Routes
 	routes.SetupRoutes(app)
