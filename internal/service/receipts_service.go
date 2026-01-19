@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/mapper"
@@ -661,12 +660,11 @@ func UpdateReceipt(
 	total *int64,
 ) error {
 
-	receipt, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	ok, err := repository.IsReceiptEditable(tenantID, receiptID)
 	if err != nil {
-		return ErrReceiptNotFound
+		return err
 	}
-	fmt.Println(storeName, date, total)
-	if receipt.Status != "DRAFT" {
+	if !ok {
 		return ErrReceiptAlreadyFinal
 	}
 

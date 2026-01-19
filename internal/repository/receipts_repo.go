@@ -477,3 +477,37 @@ func UpdateReceiptByID(
 		Updates(updates).
 		Error
 }
+
+func IsReceiptEditable(
+	tenantID uuid.UUID,
+	receiptID uuid.UUID,
+) (bool, error) {
+
+	type result struct {
+		Status       string
+		ReportStatus *string
+	}
+
+	var r result
+
+	err := configs.DB.
+		Table("receipts r").
+		Select("r.status, er.status as report_status").
+		Joins("LEFT JOIN expense_reports er ON er.id = r.report_id").
+		Where("r.id = ? AND r.tenant_id = ?", receiptID, tenantID).
+		Scan(&r).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	if r.Status != "DRAFT" {
+		return false, nil
+	}
+
+	if r.ReportStatus != nil && *r.ReportStatus != "DRAFT" {
+		return false, nil
+	}
+
+	return true, nil
+}
