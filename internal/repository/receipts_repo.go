@@ -473,7 +473,7 @@ func UpdateReceiptByID(
 
 	return configs.DB.
 		Model(&models.Receipt{}).
-		Where("id = ? AND tenant_id = ? AND status = 'PROCESSING'", receiptID, tenantID).
+		Where("id = ? AND tenant_id = ? AND status = 'DRAFT'", receiptID, tenantID).
 		Updates(updates).
 		Error
 }

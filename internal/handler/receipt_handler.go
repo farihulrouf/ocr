@@ -624,7 +624,8 @@ func UpdateReceiptItem(c *fiber.Ctx) error {
 	}
 
 	var req struct {
-		Price int64 `json:"price"`
+		Name  string `json:"name"`  // tambahkan nama item
+		Price int64  `json:"price"` // wajib
 	}
 
 	if err := c.BodyParser(&req); err != nil {
@@ -646,10 +647,11 @@ func UpdateReceiptItem(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "invalid user_id")
 	}
 
-	// Kirim user_id ke service
+	// Panggil service
 	if err := service.UpdateReceiptItem(
 		c.Context(),
 		uint(itemID),
+		req.Name,
 		req.Price,
 		userID,
 	); err != nil {

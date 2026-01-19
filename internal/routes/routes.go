@@ -108,6 +108,8 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Post("/reports/", reports.CreateReport)
 	emprole.Put("/reports/:id", reports.UpdateReport)
 	emprole.Post("/reports/:id/submit", reports.SubmitReport)
+
+	emprole.Post("/reports/:id/receipts", reports.AddReceiptsToReport)
 	emprole.Get("/reports/:id", reports.GetMyReportDetail)
 
 	// OCR Upload

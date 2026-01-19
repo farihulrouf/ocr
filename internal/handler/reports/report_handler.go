@@ -159,3 +159,32 @@ func GetMyReportDetail(c *fiber.Ctx) error {
 		"data":   data,
 	})
 }
+
+// POST /emp/reports/:id/receipts
+func AddReceiptsToReport(c *fiber.Ctx) error {
+	reportID := uuid.MustParse(c.Params("id"))
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	var req struct {
+		ReceiptIDs []string `json:"receipt_ids"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(400, "invalid body")
+	}
+
+	ids := make([]uuid.UUID, len(req.ReceiptIDs))
+	for i, s := range req.ReceiptIDs {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return fiber.NewError(400, "invalid receipt id")
+		}
+		ids[i] = id
+	}
+
+	err := reports.AddReceiptsToReport(tenantID, reportID, ids)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"status": "success"})
+}

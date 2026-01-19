@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/mapper"
@@ -233,9 +234,8 @@ func ConfirmReceipt(
 		}
 		return err
 	}
-
 	// 2️⃣ validasi status
-	if receipt.Status != "PROCESSING" {
+	if receipt.Status != "PROCESSING" && receipt.Status != "DRAFT" {
 		return ErrReceiptAlreadyFinal
 	}
 
@@ -561,7 +561,7 @@ var (
 	ErrReceiptNotEditable = errors.New("receipt is not editable")
 )
 
-func UpdateReceiptItem(ctx context.Context, itemID uint, price int64, userID uuid.UUID) error {
+func UpdateReceiptItem(ctx context.Context, itemID uint, name string, price int64, userID uuid.UUID) error {
 	if price <= 0 {
 		return errors.New("price must be greater than zero")
 	}
@@ -581,10 +581,15 @@ func UpdateReceiptItem(ctx context.Context, itemID uint, price int64, userID uui
 		return ErrReceiptNotEditable
 	}
 
-	if item.Receipt.Status != "PROCESSING" {
+	// Cek status: hanya DRAFT bisa diupdate
+	if item.Receipt.Status != "DRAFT" {
 		return ErrReceiptNotEditable
 	}
 
+	// Update fields
+	if name != "" {
+		item.Description = name
+	}
 	item.Amount = price
 
 	return repo.Update(ctx, item)
@@ -649,8 +654,8 @@ func UpdateReceipt(
 	if err != nil {
 		return ErrReceiptNotFound
 	}
-
-	if receipt.Status != "PROCESSING" {
+	fmt.Println(storeName, date, total)
+	if receipt.Status != "DRAFT" {
 		return ErrReceiptAlreadyFinal
 	}
 

@@ -101,7 +101,7 @@ func ProcessOCR(receiptID uuid.UUID) error {
 
 	receipt.OCRText = text
 	receipt.OCRStatus = "COMPLETED"
-	receipt.Status = "COMPLETED"
+	receipt.Status = "DRAFT"
 	receipt.UpdatedAt = time.Now()
 
 	// 6️⃣ Update receipt di DB
