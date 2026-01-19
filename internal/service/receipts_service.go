@@ -586,6 +586,17 @@ func UpdateReceiptItem(ctx context.Context, itemID uint, name string, price int6
 		return ErrReceiptNotEditable
 	}
 
+	// ✨ Cek report status
+	if item.Receipt.ReportID != nil {
+		var report models.ExpenseReport
+		if err := configs.DB.First(&report, "id = ?", *item.Receipt.ReportID).Error; err != nil {
+			return err
+		}
+		if report.Status != "DRAFT" {
+			return ErrReceiptNotEditable // report sudah submitted
+		}
+	}
+
 	// Update fields
 	if name != "" {
 		item.Description = name
