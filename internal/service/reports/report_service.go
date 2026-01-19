@@ -74,7 +74,8 @@ func SubmitReport(
 	report.TotalAmount = total
 
 	report.Status = "SUBMITTED"
-	return repo.UpdateStatus(report.ID, report.Status)
+	return repo.UpdateStatus(report.ID, report.Status, report.TotalAmount)
+
 }
 
 func UpdateReport(

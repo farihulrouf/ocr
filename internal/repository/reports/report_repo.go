@@ -61,10 +61,13 @@ func Update(report *models.ExpenseReport) error {
 	return configs.DB.Save(report).Error
 }
 
-func UpdateStatus(reportID uuid.UUID, status string) error {
+func UpdateStatus(reportID uuid.UUID, status string, totalAmount int64) error {
 	return configs.DB.Model(&models.ExpenseReport{}).
 		Where("id = ?", reportID).
-		Update("status", status).Error
+		Updates(map[string]interface{}{
+			"status":       status,
+			"total_amount": totalAmount,
+		}).Error
 }
 
 func ListPending(
