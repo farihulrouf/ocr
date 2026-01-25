@@ -88,7 +88,7 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		return err
 	}
 
-	// 4️⃣ Parse OCR text
+	// 4️⃣ Parse OCR text (🔥 DARI AI)
 	store, total, date, taxID, isQualified, subtotal, tax, items :=
 		ParseReceipt(text)
 
@@ -110,7 +110,7 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		return err
 	}
 
-	// 7️⃣ Simpan item-item struk
+	// 7️⃣ Simpan item-item struk (🔥 SOURCE = AI)
 	if len(items) > 0 {
 		saveReceiptItems(receipt.ID, items, subtotal, tax)
 	}
@@ -135,28 +135,23 @@ func ProcessOCRString(receiptID string) error {
 /*
 saveReceiptItems - simpan items ke tabel receipt_items
 */
+
 func saveReceiptItems(
 	receiptID uuid.UUID,
-	items []string,
+	items []ParsedItem,
 	subtotal int64,
 	tax int64,
 ) {
 	fmt.Printf("[DEBUG][ITEM] Saving %d items for receipt %s\n", len(items), receiptID)
 
-	// hitung tax rate global (jepang style)
 	taxRate := 0
 	if subtotal > 0 && tax > 0 {
 		taxRate = int(float64(tax) / float64(subtotal) * 100)
 	}
 
-	for i, line := range items {
-		desc, amount, ok := parseItemLine(line)
-		if !ok {
-			fmt.Printf("[WARN][ITEM] skip unparsable line: %s\n", line)
-			continue
-		}
+	for i, it := range items {
+		amount := it.Amount
 
-		// hitung tax per item (asumsi tax inclusive)
 		itemTax := int64(0)
 		if taxRate > 0 {
 			itemTax = amount - (amount * 100 / int64(100+taxRate))
@@ -164,7 +159,7 @@ func saveReceiptItems(
 
 		item := &models.ReceiptItem{
 			ReceiptID:   receiptID,
-			Description: desc,
+			Description: it.Description,
 			Amount:      amount,
 			TaxAmount:   itemTax,
 			TaxRate:     taxRate,
@@ -177,7 +172,7 @@ func saveReceiptItems(
 
 		fmt.Printf(
 			"[DEBUG][ITEM] saved #%d | %s | ¥%d | tax ¥%d (%d%%)\n",
-			i+1, desc, amount, itemTax, taxRate,
+			i+1, it.Description, amount, itemTax, taxRate,
 		)
 	}
 }
