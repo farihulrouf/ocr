@@ -61,6 +61,17 @@ func Update(report *models.ExpenseReport) error {
 	return configs.DB.Save(report).Error
 }
 
+func UpdateReportStatus(
+	tenantID, reportID uuid.UUID,
+	status string,
+) error {
+	return configs.DB.
+		Model(&models.ExpenseReport{}).
+		Where("id = ? AND tenant_id = ?", reportID, tenantID).
+		Update("status", status).
+		Error
+}
+
 func UpdateStatus(reportID uuid.UUID, status string, totalAmount int64) error {
 	return configs.DB.Model(&models.ExpenseReport{}).
 		Where("id = ?", reportID).
