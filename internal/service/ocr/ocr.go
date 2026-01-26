@@ -55,67 +55,60 @@ ProcessOCR
 func ProcessOCR(receiptID uuid.UUID) error {
 	fmt.Println("[DEBUG] Starting OCR for receipt:", receiptID)
 
-	// 1️⃣ Ambil receipt dari DB
+	// 1. Ambil receipt dari DB
 	receipt, err := ocr.GetReceiptByID(receiptID)
 	if err != nil {
-		fmt.Println("[ERROR] GetReceiptByID failed:", err)
 		return err
 	}
-	fmt.Println("[DEBUG] Receipt fetched:", receipt.ID, receipt.ImageURL)
 
-	// 2️⃣ Pastikan file ada
+	// 2. Pastikan file ada
 	if _, err := os.Stat(receipt.ImageURL); os.IsNotExist(err) {
-		fmt.Println("[ERROR] File not found:", receipt.ImageURL)
-
 		receipt.Status = "FAILED"
-		receipt.OCRStatus = "FAILED"
-		receipt.UpdatedAt = time.Now()
 		_ = ocr.UpdateReceipt(receipt)
-
 		return fmt.Errorf("file not found: %s", receipt.ImageURL)
 	}
 
-	// 3️⃣ Extract OCR text
-	text, err := ExtractText(receipt.ImageURL)
+	// 3. Extract OCR text (Mendapatkan Markdown/Teks mentah)
+	rawText, err := ExtractText(receipt.ImageURL)
 	if err != nil {
-		fmt.Println("[ERROR] ExtractText failed:", err)
+		return err
+	}
+	//extracted := "Full text from OCR..."
+	fmt.Printf("[DEBUG] Full Text Extracted (Length: characters)\n", rawText)
 
-		receipt.Status = "FAILED"
-		receipt.OCRStatus = "FAILED"
-		receipt.UpdatedAt = time.Now()
-		_ = ocr.UpdateReceipt(receipt)
-
+	// 3.5. Ubah teks mentah menjadi JSON terstruktur (MENGGUNAKAN AI CHAT)
+	// Langkah ini sangat penting agar ParseReceipt tidak error!
+	structuredJSON, err := StructureTextWithAI(rawText)
+	if err != nil {
+		fmt.Println("[ERROR] Structuring failed:", err)
 		return err
 	}
 
-	// 4️⃣ Parse OCR text (🔥 DARI AI)
-	store, total, date, taxID, isQualified, subtotal, tax, items :=
-		ParseReceipt(text)
+	// 4. Parse JSON hasil AI (Sekarang JSON sudah valid)
+	store, total, date, taxID, isQualified, subtotal, tax, items := ParseReceipt(structuredJSON)
 
-	// 5️⃣ Map hasil parse ke model Receipt
+	// 5. Map ke model Receipt
 	receipt.StoreName = store
-	receipt.TransactionDate = date
+	receipt.TransactionDate = &date
 	receipt.TotalAmount = total
 	receipt.TaxRegistrationID = taxID
 	receipt.IsQualified = isQualified
-
-	receipt.OCRText = text
+	receipt.OCRText = rawText // Tetap simpan teks asli untuk audit
 	receipt.OCRStatus = "COMPLETED"
 	receipt.Status = "DRAFT"
 	receipt.UpdatedAt = time.Now()
 
-	// 6️⃣ Update receipt di DB
+	// 6. Update receipt di DB
 	if err := ocr.UpdateReceipt(receipt); err != nil {
-		fmt.Println("[ERROR] UpdateReceipt failed:", err)
 		return err
 	}
 
-	// 7️⃣ Simpan item-item struk (🔥 SOURCE = AI)
+	// 7. Simpan item-item struk
 	if len(items) > 0 {
 		saveReceiptItems(receipt.ID, items, subtotal, tax)
 	}
 
-	fmt.Println("[DEBUG] OCR completed for", receiptID)
+	fmt.Println("[DEBUG] OCR & Structuring completed for", receiptID)
 	return nil
 }
 
