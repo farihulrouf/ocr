@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"log"
+	"net/url"
+	"time"
 
 	"ocr-saas-backend/configs"
 
@@ -50,4 +52,15 @@ func (m *MinioStorage) Upload(ctx context.Context, objectName string, reader io.
 		ContentType: contentType,
 	})
 	return err
+}
+
+// GetFileURL menghasilkan URL sementara yang bisa diakses publik
+func (m *MinioStorage) GetFileURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
+	reqParams := make(url.Values)
+	// Generate URL yang berlaku selama 'expiry'
+	presignedURL, err := m.Client.PresignedGetObject(ctx, m.Bucket, objectName, expiry, reqParams)
+	if err != nil {
+		return "", err
+	}
+	return presignedURL.String(), nil
 }

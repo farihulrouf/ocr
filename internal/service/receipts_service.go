@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/mapper"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository"
+	"ocr-saas-backend/internal/storage"
 	"time"
 
 	"github.com/google/uuid"
@@ -631,6 +633,7 @@ func DeleteReceiptItem(
 }
 
 func GetMyReceiptDetail(
+	storage *storage.MinioStorage,
 	tenantID uuid.UUID,
 	userID uuid.UUID,
 	receiptID uuid.UUID,
@@ -650,6 +653,16 @@ func GetMyReceiptDetail(
 	}
 
 	resp := mapper.MapReceiptToEmployeeDetailDTO(receipt)
+	// generate pre-signed URL untuk image
+	if receipt.ImageURL != "" && storage != nil {
+		url, err := storage.GetFileURL(context.Background(), receipt.ImageURL, time.Hour)
+		if err != nil {
+			log.Println("failed to generate pre-signed URL:", err)
+		} else {
+			resp.ImageURL = url
+		}
+	}
+
 	return &resp, nil
 }
 
