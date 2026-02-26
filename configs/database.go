@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"ocr-saas-backend/internal/models"
 
@@ -48,6 +49,19 @@ func ConnectDB() {
 	}
 
 	log.Println("Berhasil terhubung ke database!")
+
+	// Ambil *sql.DB dari gorm.DB untuk atur pool
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Fatalf("Gagal ambil sql.DB: %v", err)
+	}
+
+	// Atur connection pool
+	sqlDB.SetMaxOpenConns(20)           // Maks koneksi aktif
+	sqlDB.SetMaxIdleConns(10)           // Maks koneksi idle
+	sqlDB.SetConnMaxLifetime(time.Hour) // Lama koneksi sebelum diganti
+
+	log.Println("✅ Connection pool siap digunakan")
 
 	// Jalankan AutoMigrate untuk membuat tabel berdasarkan struct models
 	err = DB.AutoMigrate(
