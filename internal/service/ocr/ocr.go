@@ -7,14 +7,40 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"context"
+	"path/filepath"
+	"io"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository/ocr"
-
+	"ocr-saas-backend/internal/storage"
 	"github.com/google/uuid"
+	"github.com/minio/minio-go/v7"        
 )
 
+func downloadReceiptFromMinIO(objectKey string) (string, error) {
+	storageClient := storage.NewMinioStorage(configs.MinioConfig)
+
+	tmpFile := filepath.Join(os.TempDir(), uuid.New().String()+filepath.Ext(objectKey))
+	outFile, err := os.Create(tmpFile)
+	if err != nil {
+		return "", err
+	}
+	defer outFile.Close()
+
+	obj, err := storageClient.Client.GetObject(context.Background(), storageClient.Bucket, objectKey, minio.GetObjectOptions{})
+	if err != nil {
+		return "", err
+	}
+	defer obj.Close()
+
+	_, err = io.Copy(outFile, obj)
+	if err != nil {
+		return "", err
+	}
+
+	return tmpFile, nil
+}
 /*
 UploadReceipt
 - hanya membuat record receipt di DB
@@ -61,18 +87,23 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		return err
 	}
 
-	// 2. Pastikan file ada
-	if _, err := os.Stat(receipt.ImageURL); os.IsNotExist(err) {
+	// 2. Download file dari MinIO ke tmp
+	tmpPath, err := downloadReceiptFromMinIO(receipt.ImageURL)
+	if err != nil {
 		receipt.Status = "FAILED"
 		_ = ocr.UpdateReceipt(receipt)
-		return fmt.Errorf("file not found: %s", receipt.ImageURL)
+		return fmt.Errorf("failed to download from MinIO: %v", err)
 	}
+	// 
+	// hapus tmp file di akhir
+	defer os.Remove(tmpPath)
 
-	// 3. Extract OCR text (Mendapatkan Markdown/Teks mentah)
-	rawText, err := ExtractText(receipt.ImageURL)
+	// 3. Extract OCR text
+	rawText, err := ExtractText(tmpPath)
 	if err != nil {
 		return err
 	}
+
 	//extracted := "Full text from OCR..."
 	fmt.Printf("[DEBUG] Full Text Extracted (Length: characters)\n", rawText)
 
