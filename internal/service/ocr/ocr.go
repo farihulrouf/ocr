@@ -1,21 +1,23 @@
 package ocr
 
 import (
-	"fmt"
-	"os"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 	"context"
-	"path/filepath"
+	"fmt"
 	"io"
+	"log"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository/ocr"
 	"ocr-saas-backend/internal/storage"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
-	"github.com/minio/minio-go/v7"        
+	"github.com/minio/minio-go/v7"
 )
 
 func downloadReceiptFromMinIO(objectKey string) (string, error) {
@@ -41,6 +43,7 @@ func downloadReceiptFromMinIO(objectKey string) (string, error) {
 
 	return tmpFile, nil
 }
+
 /*
 UploadReceipt
 - hanya membuat record receipt di DB
@@ -94,7 +97,7 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		_ = ocr.UpdateReceipt(receipt)
 		return fmt.Errorf("failed to download from MinIO: %v", err)
 	}
-	// 
+	//
 	// hapus tmp file di akhir
 	defer os.Remove(tmpPath)
 
@@ -216,4 +219,63 @@ func parseItemLine(line string) (description string, amount int64, ok bool) {
 
 	description = strings.TrimSpace(m[1])
 	return description, amount, true
+}
+
+// MarkAsProcessing - tandai receipt sedang diproses worker
+func MarkAsProcessing(receiptID string) error {
+	id, err := uuid.Parse(receiptID)
+	if err != nil {
+		return err
+	}
+
+	receipt, err := ocr.GetReceiptByID(id)
+	if err != nil {
+		return err
+	}
+
+	log.Println("[DEBUG] MarkAsProcessing:", id)
+	receipt.Status = "PROCESSING"
+	receipt.OCRStatus = "PROCESSING"
+	receipt.UpdatedAt = time.Now()
+
+	return ocr.UpdateReceipt(receipt)
+}
+
+// MarkAsSuccess - tandai sukses
+func MarkAsSuccess(receiptID string) error {
+	id, err := uuid.Parse(receiptID)
+	if err != nil {
+		return err
+	}
+
+	receipt, err := ocr.GetReceiptByID(id)
+	if err != nil {
+		return err
+	}
+
+	log.Println("[DEBUG] MarkAsSuccess:", id)
+	receipt.Status = "SUCCESS"
+	receipt.OCRStatus = "COMPLETED"
+	receipt.UpdatedAt = time.Now()
+
+	return ocr.UpdateReceipt(receipt)
+}
+
+// MarkAsFailed - tandai gagal
+func MarkAsFailed(receiptID string, errMsg string) error {
+	id, err := uuid.Parse(receiptID)
+	if err != nil {
+		return err
+	}
+
+	receipt, err := ocr.GetReceiptByID(id)
+	if err != nil {
+		return err
+	}
+
+	receipt.Status = "FAILED"
+	receipt.OCRStatus = "FAILED"
+	receipt.UpdatedAt = time.Now()
+
+	return ocr.UpdateReceipt(receipt)
 }
