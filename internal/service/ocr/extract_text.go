@@ -2,13 +2,12 @@ package ocr
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
-	"time"
 )
 
 const OCRSpaceAPI = "https://api.ocr.space/parse/image"
@@ -23,6 +22,7 @@ type OCRSpaceResponse struct {
 	ErrorMessage interface{} `json:"ErrorMessage"`
 }
 
+/*
 // ExtractText melakukan OCR via OCR.Space API
 func ExtractText(imagePath string) (string, error) {
 	fmt.Println("[DEBUG] === STARTING OCR VIA OCR.SPACE API ===")
@@ -100,4 +100,76 @@ func ExtractText(imagePath string) (string, error) {
 	fmt.Println("[DEBUG] Extracted text length:", len(text))
 	fmt.Println("[OCR RESULT START]\n", text, "\n[OCR RESULT END]")
 	return text, nil
+}
+*/
+// Struktur minimal untuk menangkap response teks dari Mistral
+type MistralResponse struct {
+	Pages []struct {
+		Markdown string `json:"markdown"` // ここをcontentからmarkdownに修正
+	} `json:"pages"`
+}
+
+func ExtractText(imagePath string) (string, error) {
+	fmt.Println("\n[DEBUG] === STARTING OCR VIA MISTRAL API ===")
+
+	// 1. Baca file
+	fileData, err := os.ReadFile(imagePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file: %v", err)
+	}
+
+	// 2. Encode Base64
+	base64Image := base64.StdEncoding.EncodeToString(fileData)
+	dataURL := fmt.Sprintf("data:image/png;base64,%s", base64Image)
+
+	// 3. Payload
+	payload := map[string]interface{}{
+		"model": "mistral-ocr-latest",
+		"document": map[string]string{
+			"type":      "image_url",
+			"image_url": dataURL,
+		},
+	}
+	jsonData, _ := json.Marshal(payload)
+
+	// 4. Request
+	req, err := http.NewRequest("POST", "https://api.mistral.ai/v1/ocr", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer KXoKnv3W0nq1kb2rVyrCvntVOvKpOZac")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("error %d: %s", resp.StatusCode, string(body))
+	}
+
+	// 5. Parsing JSON Internal Mistral
+	var result MistralResponse
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("failed to parse Mistral response: %v", err)
+	}
+
+	// 6. Ambil teks Markdown
+	var finalFullText string
+	for _, page := range result.Pages {
+		// Ambil field Markdown, bukan Content
+		finalFullText += page.Markdown + "\n"
+	}
+
+	if finalFullText == "" || finalFullText == "\n" {
+		fmt.Println("[WARNING] No text extracted from markdown field")
+	}
+
+	fmt.Println("[DEBUG] OCR Text Extracted Successfully")
+	return finalFullText, nil
 }

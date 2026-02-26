@@ -84,13 +84,14 @@ type UpdateReceiptItemRequest struct {
 }
 
 type EmployeeReceiptDetailResponse struct {
-	ID        uuid.UUID              `json:"id"`
-	Date      string                 `json:"date"`
-	StoreName string                 `json:"store_name"`
-	ImageURL  string                 `json:"image_url"`
-	Category  *ReceiptDetailCategory `json:"category,omitempty"`
-	Taxation  string                 `json:"taxation"`
-	Amount    int64                  `json:"amount"`
-	Status    string                 `json:"status"`
-	Items     []ReceiptDetailItem    `json:"items"`
+	ID        uuid.UUID `json:"id"`
+	Date      string    `json:"date"`
+	StoreName string    `json:"store_name"`
+	ImageURL  string    `json:"image_url"` // <-- ini yang diubah jadi URL
+	//ImageURL  string                 `json:"image_url"`
+	Category *ReceiptDetailCategory `json:"category,omitempty"`
+	Taxation string                 `json:"taxation"`
+	Amount   int64                  `json:"amount"`
+	Status   string                 `json:"status"`
+	Items    []ReceiptDetailItem    `json:"items"`
 }

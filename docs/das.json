@@ -1,0 +1,35 @@
+{
+  "status": "success",
+  "data": {
+    "data_by_range": {
+      "month": [
+        { "name": "1月", "amount": 158400 },
+        { "name": "2月", "amount": 142000 },
+        { "name": "3月", "amount": 168200 },
+        { "name": "4月", "amount": 151300 }
+      ],
+      "lastMonth": [
+        { "name": "12月", "amount": 132000 },
+        { "name": "1月", "amount": 158400 }
+      ],
+      "quarter": [
+        { "name": "Q1", "amount": 468600 },
+        { "name": "Q2", "amount": 512300 }
+      ],
+      "year": [
+        { "name": "2023", "amount": 1824000 },
+        { "name": "2024", "amount": 1953000 }
+      ]
+    },
+    "category_stats": [
+      { "name": "飲食", "value": 45 },
+      { "name": "交通", "value": 25 },
+      { "name": "その他", "value": 30 }
+    ],
+    "recent_scans": [
+      { "id": "49e8fc80-8cbf-4043-a30d-aa94a0b3d3f3", "store": "FAMILYMART 渋谷店", "amount": 600, "status": "完了" },
+      { "id": "4ee732c5-3086-4765-9535-90540e5b4d51", "store": "LAWSON 新宿", "amount": 1200, "status": "完了" },
+      { "id": "4b4c4a9d-c8a5-43a0-ace9-2c73158c77c4", "store": "STARBUCKS 表参道", "amount": 850, "status": "確認中" }
+    ]
+  }
+}

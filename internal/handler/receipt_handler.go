@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/service"
+	"ocr-saas-backend/internal/storage"
 	"strconv"
 	"time"
 
@@ -708,7 +710,11 @@ func GetMyReceiptDetail(c *fiber.Ctx) error {
 	userID := uuid.MustParse(c.Locals("user_id").(string))
 	receiptID := uuid.MustParse(c.Params("id"))
 
+	// ambil MinioStorage instance dari config atau global
+	mStorage := storage.NewMinioStorage(configs.MinioConfig) // contoh, sesuaikan dengan config-mu
+
 	result, err := service.GetMyReceiptDetail(
+		mStorage,
 		tenantID,
 		userID,
 		receiptID,

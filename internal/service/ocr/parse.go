@@ -39,7 +39,7 @@ type DetectedLine struct {
 //
 
 // ParseReceipt - FINAL parser struk Jepang
-func ParseReceipt(text string) (
+func ParseReceiptx(text string) (
 	storeName string,
 	total int64,
 	date *time.Time,

@@ -75,7 +75,6 @@ func SubmitReport(
 
 	report.Status = "SUBMITTED"
 	return repo.UpdateStatus(report.ID, report.Status, report.TotalAmount)
-
 }
 
 func UpdateReport(
@@ -132,9 +131,11 @@ func ApproveReport(
 	if report.Status != "SUBMITTED" {
 		return errors.New("report is not submitted")
 	}
-
-	report.Status = "APPROVED"
-	return repo.Update(report)
+	return repo.UpdateReportStatus(
+		tenantID,
+		reportID,
+		"APPROVED",
+	)
 }
 
 func RejectReport(
@@ -149,9 +150,11 @@ func RejectReport(
 	if report.Status != "SUBMITTED" {
 		return errors.New("report is not submitted")
 	}
-
-	report.Status = "REJECTED"
-	return repo.Update(report)
+	return repo.UpdateReportStatus(
+		tenantID,
+		reportID,
+		"REJECTED",
+	)
 }
 
 func GetMyReportDetail(
