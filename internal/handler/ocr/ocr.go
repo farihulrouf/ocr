@@ -21,9 +21,18 @@ func UploadReceipt(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"status": "error", "message": "file is required"})
 	}
 
+	// 🔹 BATASI SIZE FILE (max 3MB)
+	const MaxFileSize = 3 * 1024 * 1024 // 3MB
+	if file.Size > MaxFileSize {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "file too large, max 3MB",
+		})
+	}
+
 	// validasi ekstensi
 	ext := filepath.Ext(file.Filename)
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".pdf" {
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
 		return c.Status(400).JSON(fiber.Map{"status": "error", "message": "invalid file type"})
 	}
 
