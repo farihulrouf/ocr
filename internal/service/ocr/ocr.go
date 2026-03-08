@@ -45,6 +45,18 @@ func downloadReceiptFromMinIO(objectKey string) (string, error) {
 	return tmpFile, nil
 }
 
+func downloadReceiptFromS3(objectKey string) (string, error) {
+
+	tmpFile := filepath.Join(os.TempDir(), uuid.New().String()+filepath.Ext(objectKey))
+
+	err := configs.S3Client.Download(context.Background(), objectKey, tmpFile)
+	if err != nil {
+		return "", err
+	}
+
+	return tmpFile, nil
+}
+
 /*
 UploadReceipt
 - hanya membuat record receipt di DB
@@ -92,7 +104,8 @@ func ProcessOCR(receiptID uuid.UUID) error {
 	}
 
 	// 2. Download file dari MinIO ke tmp
-	tmpPath, err := downloadReceiptFromMinIO(receipt.ImageURL)
+	//tmpPath, err := downloadReceiptFromMinIO(receipt.ImageURL)
+	tmpPath, err := downloadReceiptFromS3(receipt.ImageURL)
 	if err != nil {
 		receipt.Status = "FAILED"
 		_ = ocr.UpdateReceipt(receipt)

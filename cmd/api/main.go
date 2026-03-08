@@ -12,7 +12,8 @@ import (
 func main() {
 	// Load .env
 	configs.LoadConfig()
-	configs.InitMinioConfig() // <-- baru kita punya MinIO config
+	configs.InitS3()
+	//configs.InitMinioConfig() // <-- baru kita punya MinIO config
 	// DB
 	configs.ConnectDB()
 

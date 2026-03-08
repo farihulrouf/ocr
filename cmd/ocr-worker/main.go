@@ -9,7 +9,9 @@ import (
 
 func main() {
 	configs.LoadConfig()
-	configs.InitMinioConfig() // <-- pastikan ditambahkan
+	configs.InitS3()
+
+	//configs.InitMinioConfig() // <-- pastikan ditambahkan
 	configs.ConnectDB()
 	configs.ConnectRedis()
 

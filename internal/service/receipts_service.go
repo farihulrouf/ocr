@@ -10,7 +10,7 @@ import (
 	"ocr-saas-backend/internal/mapper"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository"
-	"ocr-saas-backend/internal/storage"
+	"ocr-saas-backend/internal/storage/s3"
 	"time"
 
 	"github.com/google/uuid"
@@ -633,7 +633,7 @@ func DeleteReceiptItem(
 }
 
 func GetMyReceiptDetail(
-	storage *storage.MinioStorage,
+	storage *s3.S3Storage,
 	tenantID uuid.UUID,
 	userID uuid.UUID,
 	receiptID uuid.UUID,
