@@ -96,8 +96,10 @@ func ProcessOCR(receiptID uuid.UUID) error {
 	if err != nil {
 		receipt.Status = "FAILED"
 		_ = ocr.UpdateReceipt(receipt)
+		log.Println("[OCR][ERROR] Failed to download from MinIO:", err) // <-- add this
 		return fmt.Errorf("failed to download from MinIO: %v", err)
 	}
+	log.Println("[OCR] File downloaded to:", tmpPath) // <-- add this
 	//
 	// hapus tmp file di akhir
 	defer os.Remove(tmpPath)
@@ -234,7 +236,7 @@ func MarkAsProcessing(receiptID string) error {
 		return err
 	}
 
-	log.Println("[DEBUG] MarkAsProcessing:", id)
+	log.Printf("[WORKER][STATUS] %s marked as PROCESSING\n", id) // <-- add this
 	receipt.Status = "PROCESSING"
 	receipt.OCRStatus = "PROCESSING"
 	receipt.UpdatedAt = time.Now()
