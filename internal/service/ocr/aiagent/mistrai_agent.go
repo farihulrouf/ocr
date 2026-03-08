@@ -38,7 +38,7 @@ type ParsedItem struct {
 
 func StructureTextWithAI(ocrText string) (string, error) {
 
-	fmt.Println("\n[DEBUG] >>> STEP 2: AI STRUCTURING<<<")
+	fmt.Println("\n[DEBUG] >>> STEP 2: AI STRUCTURING <<<")
 	fmt.Printf("[DEBUG] Raw Text Length: %d characters\n", len(ocrText))
 
 	apiKey := os.Getenv("MISTRAL_API_KEY")
@@ -74,46 +74,80 @@ RAW TEXT:
 		"response_format": map[string]string{"type": "json_object"},
 	}
 
-	jsonData, _ := json.Marshal(payload)
-
-	req, _ := http.NewRequest(
-		"POST",
-		"https://api.mistral.ai/v1/chat/completions",
-		bytes.NewBuffer(jsonData),
-	)
-
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{
-		Timeout: 40 * time.Second,
-	}
-
-	resp, err := client.Do(req)
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Printf("[ERROR] AI Request Failed: %v\n", err)
 		return "", err
 	}
-	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
-
-	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
+	client := &http.Client{
+		Timeout: 30 * time.Second,
 	}
 
-	json.Unmarshal(body, &result)
+	var lastErr error
 
-	if len(result.Choices) > 0 {
-		fmt.Println("[DEBUG] AI JSON Response received successfully.")
-		return result.Choices[0].Message.Content, nil
+	// 🔁 Retry maksimal 3x
+	for attempt := 1; attempt <= 3; attempt++ {
+
+		fmt.Printf("[DEBUG] AI Attempt %d\n", attempt)
+
+		start := time.Now()
+
+		req, err := http.NewRequest(
+			"POST",
+			"https://api.mistral.ai/v1/chat/completions",
+			bytes.NewBuffer(jsonData),
+		)
+		if err != nil {
+			return "", err
+		}
+
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+
+		if err != nil {
+			fmt.Printf("[ERROR] AI Request Failed: %v\n", err)
+			lastErr = err
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		duration := time.Since(start)
+		fmt.Println("[DEBUG] AI request duration:", duration)
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("[ERROR] AI API error %d: %s\n", resp.StatusCode, string(body))
+			lastErr = fmt.Errorf("error %d", resp.StatusCode)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		var result struct {
+			Choices []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+		}
+
+		if err := json.Unmarshal(body, &result); err != nil {
+			return "", fmt.Errorf("failed to parse AI response: %v", err)
+		}
+
+		if len(result.Choices) > 0 {
+			fmt.Println("[DEBUG] AI JSON Response received successfully.")
+			return result.Choices[0].Message.Content, nil
+		}
+
+		lastErr = fmt.Errorf("AI returned empty content")
+		time.Sleep(2 * time.Second)
 	}
 
-	return "", fmt.Errorf("AI returned empty content")
+	return "", fmt.Errorf("AI failed after retries: %v", lastErr)
 }
 
 func ParseReceipt(jsonText string) (
