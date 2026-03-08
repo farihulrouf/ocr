@@ -8,6 +8,7 @@ import (
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository/ocr"
+	"ocr-saas-backend/internal/service/ocr/aiagent"
 	"ocr-saas-backend/internal/storage"
 	"os"
 	"path/filepath"
@@ -112,14 +113,14 @@ func ProcessOCR(receiptID uuid.UUID) error {
 
 	// 3.5. Ubah teks mentah menjadi JSON terstruktur (MENGGUNAKAN AI CHAT)
 	// Langkah ini sangat penting agar ParseReceipt tidak error!
-	structuredJSON, err := StructureTextWithAI(rawText)
+	structuredJSON, err := aiagent.StructureTextWithAI(rawText)
 	if err != nil {
 		fmt.Println("[ERROR] Structuring failed:", err)
 		return err
 	}
 
 	// 4. Parse JSON hasil AI (Sekarang JSON sudah valid)
-	store, total, date, taxID, isQualified, subtotal, tax, items := ParseReceipt(structuredJSON)
+	store, total, date, taxID, isQualified, subtotal, tax, items := aiagent.ParseReceipt(structuredJSON)
 
 	// 5. Map ke model Receipt
 	receipt.StoreName = store
@@ -165,7 +166,7 @@ saveReceiptItems - simpan items ke tabel receipt_items
 
 func saveReceiptItems(
 	receiptID uuid.UUID,
-	items []ParsedItem,
+	items []aiagent.ParsedItem,
 	subtotal int64,
 	tax int64,
 ) {
