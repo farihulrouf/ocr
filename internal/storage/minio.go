@@ -5,9 +5,8 @@ import (
 	"io"
 	"log"
 	"net/url"
-	"time"
-
 	"ocr-saas-backend/configs"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
