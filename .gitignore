@@ -28,11 +28,8 @@ Thumbs.db
 .idea/
 
 # ---- VSCode ----
-.vscode/
 
 # ---- Env / Credentials ----
-.env
-.env.local
 .env.*.local
 
 # ---- Uploaded Files ----
@@ -50,3 +47,5 @@ fiber.pid
 *.db
 *.sqlite
 *.sqlite3
+config.bat
+node_modules
