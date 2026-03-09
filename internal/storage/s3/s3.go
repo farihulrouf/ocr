@@ -4,10 +4,12 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 )
 
 type S3Storage struct {
@@ -45,7 +47,7 @@ func (s *S3Storage) Upload(
 }
 
 /*
-Download file dari S3 ke local path (untuk OCR worker)
+Download file dari S3 ke local path
 */
 func (s *S3Storage) Download(
 	ctx context.Context,
@@ -73,8 +75,30 @@ func (s *S3Storage) Download(
 }
 
 /*
+Download langsung ke temporary file
+Ini yang biasanya dipakai OCR worker
+*/
+func (s *S3Storage) DownloadToTemp(
+	ctx context.Context,
+	key string,
+) (string, error) {
+
+	tmpFile := filepath.Join(
+		os.TempDir(),
+		uuid.New().String()+filepath.Ext(key),
+	)
+
+	err := s.Download(ctx, key, tmpFile)
+	if err != nil {
+		return "", err
+	}
+
+	return tmpFile, nil
+}
+
+/*
 Generate presigned URL untuk akses file
-Biasanya dipakai untuk frontend melihat image receipt
+Biasanya dipakai frontend untuk melihat receipt
 */
 func (s *S3Storage) GetFileURL(
 	ctx context.Context,
