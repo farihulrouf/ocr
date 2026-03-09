@@ -1,7 +1,7 @@
-package handler
+package tenants
 
 import (
-	"ocr-saas-backend/internal/service"
+	"ocr-saas-backend/internal/service/tenants"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,7 +16,7 @@ func GetTenantInfo(c *fiber.Ctx) error {
 		})
 	}
 
-	tenant, err := service.GetTenantInfo(tenantID.(string))
+	tenant, err := tenants.GetTenantInfo(tenantID.(string))
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Tenant not found",
@@ -67,7 +67,7 @@ func UpdateTenantInfo(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := service.UpdateTenantInfo(tenantID.(string), updateData); err != nil {
+	if err := tenants.UpdateTenantInfo(tenantID.(string), updateData); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update tenant info",
 		})
@@ -87,7 +87,7 @@ func GetTenantSettings(c *fiber.Ctx) error {
 		})
 	}
 
-	settings, err := service.GetTenantSettings(tenantID.(string))
+	settings, err := tenants.GetTenantSettings(tenantID.(string))
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Settings not found",
@@ -109,7 +109,7 @@ func GetTenantSubscription(c *fiber.Ctx) error {
 		})
 	}
 
-	tenant, err := service.GetTenantSubscription(tenantID.(string))
+	tenant, err := tenants.GetTenantSubscription(tenantID.(string))
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Subscription not found",
@@ -143,7 +143,7 @@ func UpgradeSubscription(c *fiber.Ctx) error {
 		})
 	}
 
-	checkoutURL, err := service.CreateUpgradeCheckoutURL(tenantID.(string), body.PlanID)
+	checkoutURL, err := tenants.CreateUpgradeCheckoutURL(tenantID.(string), body.PlanID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Plan not found",
@@ -161,7 +161,7 @@ func SystemListTenants(c *fiber.Ctx) error {
 	q := c.Query("q", "")
 	sort := c.Query("sort", "created_at desc")
 
-	tenants, total, err := service.GetAllTenants(page, pageSize, q, sort)
+	tenants, total, err := tenants.GetAllTenants(page, pageSize, q, sort)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to fetch tenants",

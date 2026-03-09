@@ -1,29 +1,29 @@
-package service
+package tenants
 
 import (
 	"fmt"
 	"ocr-saas-backend/internal/models"
-	"ocr-saas-backend/internal/repository"
+	"ocr-saas-backend/internal/repository/tenants"
 )
 
 func GetTenantInfo(tenantID string) (*models.Tenant, error) {
-	return repository.GetTenantByID(tenantID)
+	return tenants.GetTenantByID(tenantID)
 }
 
 func UpdateTenantInfo(tenantID string, data map[string]interface{}) error {
-	return repository.UpdateTenantInfo(tenantID, data)
+	return tenants.UpdateTenantInfo(tenantID, data)
 }
 
 func GetTenantSettings(tenantID string) (*models.CompanySetting, error) {
-	return repository.GetTenantSettings(tenantID)
+	return tenants.GetTenantSettings(tenantID)
 }
 func GetTenantSubscription(tenantID string) (*models.Tenant, error) {
-	return repository.GetTenantSubscription(tenantID)
+	return tenants.GetTenantSubscription(tenantID)
 }
 
 func CreateUpgradeCheckoutURL(tenantID string, planID string) (string, error) {
 	// cek apakah plan valid
-	_, err := repository.GetPlanByID(planID)
+	_, err := tenants.GetPlanByID(planID)
 	if err != nil {
 		return "", err
 	}
@@ -38,5 +38,5 @@ func CreateUpgradeCheckoutURL(tenantID string, planID string) (string, error) {
 }
 
 func GetAllTenants(page, pageSize int, q, sort string) ([]models.Tenant, int64, error) {
-	return repository.GetAllTenants(page, pageSize, q, sort)
+	return tenants.GetAllTenants(page, pageSize, q, sort)
 }

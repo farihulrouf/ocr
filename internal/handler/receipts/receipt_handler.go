@@ -1,10 +1,11 @@
-package handler
+package receipts
 
 import (
 	"ocr-saas-backend/configs"
-	"ocr-saas-backend/internal/service"
 	"strconv"
 	"time"
+
+	service "ocr-saas-backend/internal/service/receipts"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
