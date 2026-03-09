@@ -1,7 +1,7 @@
-package handler
+package departments
 
 import (
-	"ocr-saas-backend/internal/service"
+	service "ocr-saas-backend/internal/service/departments"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"

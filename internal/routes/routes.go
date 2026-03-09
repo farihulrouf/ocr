@@ -3,6 +3,8 @@ package routes
 import (
 	"ocr-saas-backend/internal/handler"
 	"ocr-saas-backend/internal/handler/categories"
+
+	"ocr-saas-backend/internal/handler/departments"
 	"ocr-saas-backend/internal/handler/ocr"
 	"ocr-saas-backend/internal/handler/payments"
 	"ocr-saas-backend/internal/handler/reports"
@@ -50,11 +52,11 @@ func SetupRoutes(app *fiber.App) {
 	//SuperAdminOnly
 	system := v0.Group("/system", middleware.Protected(), middleware.SuperAdminOnly())
 	system.Get("/tenants", handler.SystemListTenants)
-	system.Get("/departments", handler.ListDepartments)
-	system.Post("/departments", handler.CreateDepartment)
-	system.Get("/departments/:id", handler.GetDepartmentDetailHandler)
-	system.Put("/departments/:id", handler.UpdateDepartment)
-	system.Delete("/departments/:id", handler.DeleteDepartment)
+	system.Get("/departments", departments.ListDepartments)
+	system.Post("/departments", departments.CreateDepartment)
+	system.Get("/departments/:id", departments.GetDepartmentDetailHandler)
+	system.Put("/departments/:id", departments.UpdateDepartment)
+	system.Delete("/departments/:id", departments.DeleteDepartment)
 
 	system.Get("/org/users", handler.ListUsers)
 	system.Get("/org/users/:id", handler.UserDetail)
