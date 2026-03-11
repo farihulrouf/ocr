@@ -3,6 +3,7 @@ package ocr
 import (
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -32,10 +33,19 @@ func UpdateOCRJob(job *models.OCRJob) error {
 }
 
 func UpdateOCRJobStatus(receiptID uuid.UUID, status string) error {
+	update := map[string]interface{}{
+		"status": status,
+	}
+	if status == "PROCESSING" {
+		update["started_at"] = time.Now()
+	}
+	if status == "DONE" || status == "FAILED" {
+		update["finished_at"] = time.Now()
+	}
 	return configs.DB.
 		Model(&models.OCRJob{}).
 		Where("receipt_id = ?", receiptID).
-		Update("status", status).Error
+		Updates(update).Error
 }
 
 func UpdateOCRJobFailed(receiptID uuid.UUID, errMsg string) error {
@@ -45,5 +55,6 @@ func UpdateOCRJobFailed(receiptID uuid.UUID, errMsg string) error {
 		Updates(map[string]interface{}{
 			"status":        "FAILED",
 			"error_message": errMsg,
+			"finished_at":   time.Now(),
 		}).Error
 }

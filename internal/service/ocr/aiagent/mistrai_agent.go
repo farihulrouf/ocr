@@ -109,7 +109,8 @@ RAW TEXT:
 		if err != nil {
 			fmt.Printf("[ERROR] AI Request Failed: %v\n", err)
 			lastErr = err
-			time.Sleep(2 * time.Second)
+			sleep := time.Duration(1<<attempt) * time.Second
+			time.Sleep(sleep)
 			continue
 		}
 
@@ -122,7 +123,8 @@ RAW TEXT:
 		if resp.StatusCode != http.StatusOK {
 			fmt.Printf("[ERROR] AI API error %d: %s\n", resp.StatusCode, string(body))
 			lastErr = fmt.Errorf("error %d", resp.StatusCode)
-			time.Sleep(2 * time.Second)
+			sleep := time.Duration(1<<attempt) * time.Second
+			time.Sleep(sleep)
 			continue
 		}
 
@@ -144,7 +146,8 @@ RAW TEXT:
 		}
 
 		lastErr = fmt.Errorf("AI returned empty content")
-		time.Sleep(2 * time.Second)
+		sleep := time.Duration(1<<attempt) * time.Second
+		time.Sleep(sleep)
 	}
 
 	return "", fmt.Errorf("AI failed after retries: %v", lastErr)

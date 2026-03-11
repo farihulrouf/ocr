@@ -211,55 +211,34 @@ func parseItemLine(line string) (description string, amount int64, ok bool) {
 	return description, amount, true
 }
 
-// MarkAsProcessing - tandai receipt sedang diproses worker
 func MarkAsProcessing(receiptID string) error {
-	id, err := uuid.Parse(receiptID)
-	if err != nil {
-		return err
-	}
-
+	id, _ := uuid.Parse(receiptID)
 	receipt, err := ocr.GetReceiptByID(id)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("[WORKER][STATUS] %s marked as PROCESSING\n", id) // <-- add this
 	receipt.Status = "PROCESSING"
 	receipt.OCRStatus = "PROCESSING"
 	receipt.UpdatedAt = time.Now()
-	_ = ocr.UpdateOCRJobStatus(id, "PROCESSING")
-
 	return ocr.UpdateReceipt(receipt)
 }
 
-// MarkAsSuccess - tandai sukses
 func MarkAsSuccess(receiptID string) error {
-	id, err := uuid.Parse(receiptID)
-	if err != nil {
-		return err
-	}
-
+	id, _ := uuid.Parse(receiptID)
 	receipt, err := ocr.GetReceiptByID(id)
 	if err != nil {
 		return err
 	}
 
-	log.Println("[DEBUG] MarkAsSuccess:", id)
 	receipt.Status = "SUCCESS"
 	receipt.OCRStatus = "COMPLETED"
 	receipt.UpdatedAt = time.Now()
-	_ = ocr.UpdateOCRJobStatus(id, "DONE")
-
 	return ocr.UpdateReceipt(receipt)
 }
 
-// MarkAsFailed - tandai gagal
 func MarkAsFailed(receiptID string, errMsg string) error {
-	id, err := uuid.Parse(receiptID)
-	if err != nil {
-		return err
-	}
-
+	id, _ := uuid.Parse(receiptID)
 	receipt, err := ocr.GetReceiptByID(id)
 	if err != nil {
 		return err
@@ -268,7 +247,29 @@ func MarkAsFailed(receiptID string, errMsg string) error {
 	receipt.Status = "FAILED"
 	receipt.OCRStatus = "FAILED"
 	receipt.UpdatedAt = time.Now()
-	_ = ocr.UpdateOCRJobFailed(id, errMsg)
-
 	return ocr.UpdateReceipt(receipt)
+}
+
+// SetOCRJobStatus - update status OCRJob dengan aman
+func SetOCRJobStatus(receiptID uuid.UUID, status string, errMsg string) error {
+	update := map[string]interface{}{
+		"status": status,
+	}
+
+	now := time.Now()
+	switch status {
+	case "PROCESSING":
+		update["started_at"] = now
+	case "DONE", "FAILED":
+		update["finished_at"] = now
+	}
+
+	if errMsg != "" {
+		update["error_message"] = errMsg
+	}
+
+	return configs.DB.
+		Model(&models.OCRJob{}).
+		Where("receipt_id = ?", receiptID).
+		Updates(update).Error
 }
