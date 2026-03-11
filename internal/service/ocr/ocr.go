@@ -34,7 +34,20 @@ func UploadReceipt(tenantID, userID uuid.UUID, imageURL string) (*models.Receipt
 	if err := ocr.CreateReceipt(receipt); err != nil {
 		return nil, err
 	}
+	// 🔴 TAMBAHKAN INI
+	job := &models.OCRJob{
+		TenantID:  tenantID,
+		ReceiptID: receipt.ID,
+		Status:    "PENDING",
+		Engine:    "mistrail",
+	}
+
+	if err := ocr.CreateOCRJob(job); err != nil {
+		return nil, err
+	}
+
 	fmt.Println("[DEBUG] Receipt created:", receipt.ID)
+	fmt.Println("[DEBUG] OCR Job created:", job.ID)
 	return receipt, nil
 }
 
@@ -214,6 +227,7 @@ func MarkAsProcessing(receiptID string) error {
 	receipt.Status = "PROCESSING"
 	receipt.OCRStatus = "PROCESSING"
 	receipt.UpdatedAt = time.Now()
+	_ = ocr.UpdateOCRJobStatus(id, "PROCESSING")
 
 	return ocr.UpdateReceipt(receipt)
 }
@@ -234,6 +248,7 @@ func MarkAsSuccess(receiptID string) error {
 	receipt.Status = "SUCCESS"
 	receipt.OCRStatus = "COMPLETED"
 	receipt.UpdatedAt = time.Now()
+	_ = ocr.UpdateOCRJobStatus(id, "DONE")
 
 	return ocr.UpdateReceipt(receipt)
 }
@@ -253,6 +268,7 @@ func MarkAsFailed(receiptID string, errMsg string) error {
 	receipt.Status = "FAILED"
 	receipt.OCRStatus = "FAILED"
 	receipt.UpdatedAt = time.Now()
+	_ = ocr.UpdateOCRJobFailed(id, errMsg)
 
 	return ocr.UpdateReceipt(receipt)
 }

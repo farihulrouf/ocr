@@ -220,3 +220,19 @@ type TenantUsage struct {
 	// Optional: relasi ke Tenant
 	Tenant Tenant `gorm:"foreignKey:TenantID" json:"-"`
 }
+
+type OCRJob struct {
+	Base
+
+	TenantID  uuid.UUID `gorm:"type:uuid;index" json:"tenant_id"`
+	ReceiptID uuid.UUID `gorm:"type:uuid;index" json:"receipt_id"`
+
+	Status string `gorm:"default:'PENDING';index" json:"status"`
+
+	Engine string `json:"engine"`
+
+	ErrorMessage string `json:"error_message"`
+
+	StartedAt  *time.Time `json:"started_at"`
+	FinishedAt *time.Time `json:"finished_at"`
+}
