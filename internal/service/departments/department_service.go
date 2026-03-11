@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 	"ocr-saas-backend/internal/models"
-	"ocr-saas-backend/internal/repository"
+	repository "ocr-saas-backend/internal/repository/departments"
 
 	"github.com/google/uuid"
 )

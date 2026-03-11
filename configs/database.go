@@ -89,6 +89,7 @@ func ConnectDB() {
 		&models.AuditTrail{},  // Child Tenant/User
 		&models.ExportLog{},   // Child ExpenseReport
 		&models.TenantUsage{}, // Statistik pemakaian
+		&models.OCRJob{},
 	)
 
 	if err != nil {

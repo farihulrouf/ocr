@@ -86,7 +86,8 @@ func ExtractText(imagePath string) (string, error) {
 				return "", err
 			}
 
-			time.Sleep(2 * time.Second)
+			sleep := time.Duration(1<<attempt) * time.Second
+			time.Sleep(sleep)
 			continue
 		}
 
@@ -102,7 +103,8 @@ func ExtractText(imagePath string) (string, error) {
 				return "", fmt.Errorf("error %d: %s", resp.StatusCode, string(body))
 			}
 
-			time.Sleep(2 * time.Second)
+			sleep := time.Duration(1<<attempt) * time.Second
+			time.Sleep(sleep)
 			continue
 		}
 

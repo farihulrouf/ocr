@@ -1,4 +1,4 @@
-package repository
+package tenants
 
 import (
 	"ocr-saas-backend/configs"

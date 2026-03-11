@@ -3,6 +3,10 @@ package routes
 import (
 	"ocr-saas-backend/internal/handler"
 	"ocr-saas-backend/internal/handler/categories"
+	"ocr-saas-backend/internal/handler/receipts"
+	"ocr-saas-backend/internal/handler/tenants"
+
+	"ocr-saas-backend/internal/handler/departments"
 	"ocr-saas-backend/internal/handler/ocr"
 	"ocr-saas-backend/internal/handler/payments"
 	"ocr-saas-backend/internal/handler/reports"
@@ -41,20 +45,20 @@ func SetupRoutes(app *fiber.App) {
 	// =============================
 	tenant := v0.Group("/tenant", middleware.Protected())
 
-	tenant.Get("/info", handler.GetTenantInfo)
-	tenant.Put("/info", handler.UpdateTenantInfo)
-	tenant.Get("/settings", handler.GetTenantSettings)
+	tenant.Get("/info", tenants.GetTenantInfo)
+	tenant.Put("/info", tenants.UpdateTenantInfo)
+	tenant.Get("/settings", tenants.GetTenantSettings)
 
-	tenant.Get("/subscription", handler.GetTenantSubscription)
-	tenant.Post("/subscription/upgrade", handler.UpgradeSubscription)
+	tenant.Get("/subscription", tenants.GetTenantSubscription)
+	tenant.Post("/subscription/upgrade", tenants.UpgradeSubscription)
 	//SuperAdminOnly
 	system := v0.Group("/system", middleware.Protected(), middleware.SuperAdminOnly())
-	system.Get("/tenants", handler.SystemListTenants)
-	system.Get("/departments", handler.ListDepartments)
-	system.Post("/departments", handler.CreateDepartment)
-	system.Get("/departments/:id", handler.GetDepartmentDetailHandler)
-	system.Put("/departments/:id", handler.UpdateDepartment)
-	system.Delete("/departments/:id", handler.DeleteDepartment)
+	system.Get("/tenants", tenants.SystemListTenants)
+	system.Get("/departments", departments.ListDepartments)
+	system.Post("/departments", departments.CreateDepartment)
+	system.Get("/departments/:id", departments.GetDepartmentDetailHandler)
+	system.Put("/departments/:id", departments.UpdateDepartment)
+	system.Delete("/departments/:id", departments.DeleteDepartment)
 
 	system.Get("/org/users", handler.ListUsers)
 	system.Get("/org/users/:id", handler.UserDetail)
@@ -88,15 +92,15 @@ func SetupRoutes(app *fiber.App) {
 	//finance.Delete("/categories/:id", middleware.RoleAdmin(), handler.DeleteCategory)
 
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
-	emprole.Get("/receipt", handler.GetMyReceipts)
+	emprole.Get("/receipt", receipts.GetMyReceipts)
 
-	emprole.Get("/receipt/:id", handler.GetMyReceiptDetail)
+	emprole.Get("/receipt/:id", receipts.GetMyReceiptDetail)
 	emprole.Post("/receipt/upload", ocr.UploadReceipt)
-	emprole.Put("/receipt/:id", handler.UpdateReceipt)
+	emprole.Put("/receipt/:id", receipts.UpdateReceipt)
 	//emprole.Put("/receipt/:id", handler.ConfirmReceipt)
-	emprole.Delete("/receipt/:id", handler.DeleteReceipt)
-	emprole.Post("/receipt/:id/items", handler.AddReceiptItem)
-	emprole.Put("/receipt/items/:itemId", handler.UpdateReceiptItem)
+	emprole.Delete("/receipt/:id", receipts.DeleteReceipt)
+	emprole.Post("/receipt/:id/items", receipts.AddReceiptItem)
+	emprole.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
 
 	//api.Post("/ocr/receipt", handler.UploadReceipt)
 
@@ -124,18 +128,18 @@ func SetupRoutes(app *fiber.App) {
 	// =============================
 	//tenant.Get("/usage", handler.GetUsageStats) // GET /v0/api/tenant/usage
 	manager := v0.Group("/manager", middleware.Protected(), middleware.TenantAdminOnly())
-	manager.Get("/receipt", handler.GetAllReceipts)
-	manager.Get("/receipt/:id", handler.GetReceiptDetail)
-	manager.Put("/receipt/:id", handler.ConfirmReceipt)
+	manager.Get("/receipt", receipts.GetAllReceipts)
+	manager.Get("/receipt/:id", receipts.GetReceiptDetail)
+	manager.Put("/receipt/:id", receipts.ConfirmReceipt)
 	//manager.Delete("/receipt/:id", handler.DeleteReceipt)
-	manager.Post("/receipt/bulk/delete", handler.BulkDeleteReceipts)
-	manager.Post("/receipt/bulk/restore", handler.BulkRestoreReceipts)
-	manager.Post("/receipt/bulk/approve", handler.BulkApproveReceipts)
-	manager.Post("/receipt/bulk/reject", handler.BulkRejectReceipts)
-	manager.Post("/receipt/bulk/update-category", handler.BulkUpdateReceiptCategory)
-	manager.Post("/receipt/:id/items", handler.AddReceiptItem)
-	manager.Put("/receipt/items/:itemId", handler.UpdateReceiptItem)
-	manager.Delete("/receipt/items/:itemId", handler.DeleteReceiptItem)
+	manager.Post("/receipt/bulk/delete", receipts.BulkDeleteReceipts)
+	manager.Post("/receipt/bulk/restore", receipts.BulkRestoreReceipts)
+	manager.Post("/receipt/bulk/approve", receipts.BulkApproveReceipts)
+	manager.Post("/receipt/bulk/reject", receipts.BulkRejectReceipts)
+	manager.Post("/receipt/bulk/update-category", receipts.BulkUpdateReceiptCategory)
+	manager.Post("/receipt/:id/items", receipts.AddReceiptItem)
+	manager.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
+	manager.Delete("/receipt/items/:itemId", receipts.DeleteReceiptItem)
 	// =============================
 	// MANAGER - REPORT APPROVAL
 	// =============================

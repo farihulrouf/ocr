@@ -1,4 +1,4 @@
-package service
+package receipts
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/mapper"
 	"ocr-saas-backend/internal/models"
-	"ocr-saas-backend/internal/repository"
+	"ocr-saas-backend/internal/repository/receipts"
 	"ocr-saas-backend/internal/storage/s3"
 	"time"
 
@@ -23,7 +23,7 @@ func GetMyReceipts(
 	q, status, sort string,
 ) (interface{}, error) {
 
-	receipts, total, err := repository.GetMyReceipts(
+	receipts, total, err := receipts.GetMyReceipts(
 		tenantID, userID, page, pageSize, q, status, sort,
 	)
 	if err != nil {
@@ -79,7 +79,7 @@ func GetAllReceipts(
 	q, status, sort string,
 ) (interface{}, error) {
 
-	receipts, total, err := repository.GetAllReceipts(
+	receipts, total, err := receipts.GetAllReceipts(
 		tenantID, page, pageSize, q, status, sort,
 	)
 	if err != nil {
@@ -143,7 +143,7 @@ func GetReceiptDetail(
 		return nil, errors.New("invalid id")
 	}
 
-	receipt, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	receipt, err := receipts.GetReceiptDetailByID(tenantID, receiptID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("receipt not found")
@@ -228,7 +228,7 @@ func ConfirmReceipt(
 ) error {
 
 	// 1️⃣ ambil detail receipt
-	receipt, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	receipt, err := receipts.GetReceiptDetailByID(tenantID, receiptID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrReceiptNotFound
@@ -250,7 +250,7 @@ func ConfirmReceipt(
 		return ErrInvalidTotalAmount
 	}
 	// 4️⃣ update receipt
-	return repository.ConfirmReceiptByID(
+	return receipts.ConfirmReceiptByID(
 		tenantID,
 		receiptID,
 		total,
@@ -263,7 +263,7 @@ func DeleteReceiptManager(
 	receiptID uuid.UUID,
 ) error {
 
-	err := repository.DeleteReceiptByIDManager(
+	err := receipts.DeleteReceiptByIDManager(
 		tenantID,
 		receiptID,
 	)
@@ -292,7 +292,7 @@ func BulkDeleteReceiptsManager(
 		return 0, errors.New("invalid request")
 	}
 
-	deleted, err := repository.BulkDeleteReceiptsByManager(
+	deleted, err := receipts.BulkDeleteReceiptsByManager(
 		tenantID,
 		ids,
 	)
@@ -335,7 +335,7 @@ func BulkRestoreReceiptsManager(
 	receiptIDs []uuid.UUID,
 ) (int64, error) {
 
-	restored, err := repository.BulkRestoreReceiptsByIDs(
+	restored, err := receipts.BulkRestoreReceiptsByIDs(
 		tenantID,
 		receiptIDs,
 	)
@@ -475,7 +475,7 @@ func BulkUpdateReceiptCategory(
 	}
 
 	// ✅ category harus milik tenant
-	_, err := repository.GetAccountCategoryByID(tenantID, categoryID)
+	_, err := receipts.GetAccountCategoryByID(tenantID, categoryID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return 0, ErrCategoryNotBelongTenant
@@ -484,7 +484,7 @@ func BulkUpdateReceiptCategory(
 	}
 
 	// 📸 ambil OLD data
-	oldSnapshot, err := repository.GetReceiptsCategorySnapshot(
+	oldSnapshot, err := receipts.GetReceiptsCategorySnapshot(
 		tenantID,
 		receiptIDs,
 	)
@@ -493,7 +493,7 @@ func BulkUpdateReceiptCategory(
 	}
 
 	// 🔄 update
-	updated, err := repository.BulkUpdateReceiptCategory(
+	updated, err := receipts.BulkUpdateReceiptCategory(
 		tenantID,
 		receiptIDs,
 		categoryID,
@@ -536,7 +536,7 @@ func AddReceiptItem(
 ) (uint, error) {
 
 	// 1️⃣ pastikan receipt ada & milik tenant
-	_, err := repository.GetReceiptDetailByID(tenantID, receiptID)
+	_, err := receipts.GetReceiptDetailByID(tenantID, receiptID)
 	if err != nil {
 		return 0, ErrReceiptNotFound
 	}
@@ -550,7 +550,7 @@ func AddReceiptItem(
 		TaxRate:     0,
 	}
 
-	if err := repository.CreateReceiptItem(ctx, item); err != nil {
+	if err := receipts.CreateReceiptItem(ctx, item); err != nil {
 		return 0, err
 	}
 
@@ -567,7 +567,7 @@ func UpdateReceiptItem(ctx context.Context, itemID uint, name string, price int6
 		return errors.New("price must be greater than zero")
 	}
 
-	repo := repository.NewReceiptItemRepository()
+	repo := receipts.NewReceiptItemRepository()
 
 	item, err := repo.FindByID(ctx, itemID)
 	if err != nil {
@@ -612,7 +612,7 @@ func DeleteReceiptItem(
 	itemID uint,
 ) error {
 
-	repo := repository.NewReceiptItemRepository()
+	repo := receipts.NewReceiptItemRepository()
 
 	// 1️⃣ ambil item
 	item, err := repo.FindByID(ctx, itemID)
@@ -639,7 +639,7 @@ func GetMyReceiptDetail(
 	receiptID uuid.UUID,
 ) (*dto.EmployeeReceiptDetailResponse, error) {
 
-	receipt, err := repository.GetReceiptDetailByID(
+	receipt, err := receipts.GetReceiptDetailByID(
 		tenantID,
 		receiptID,
 	)
@@ -673,7 +673,7 @@ func UpdateReceipt(
 	total *int64,
 ) error {
 
-	ok, err := repository.IsReceiptEditable(tenantID, receiptID)
+	ok, err := receipts.IsReceiptEditable(tenantID, receiptID)
 	if err != nil {
 		return err
 	}
@@ -681,7 +681,7 @@ func UpdateReceipt(
 		return ErrReceiptAlreadyFinal
 	}
 
-	return repository.UpdateReceiptByID(
+	return receipts.UpdateReceiptByID(
 		tenantID,
 		receiptID,
 		storeName,
