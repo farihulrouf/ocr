@@ -16,6 +16,7 @@ func main() {
 
 	//configs.InitMinioConfig() // <-- pastikan ditambahkan
 	configs.ConnectDB()
+	//configs.SeedDatabase(configs.DB)
 	configs.ConnectRedis()
 
 	ctx := context.Background()
