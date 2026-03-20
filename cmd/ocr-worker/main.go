@@ -5,6 +5,7 @@ import (
 	"log"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/service/ocr"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -44,15 +45,40 @@ func main() {
 			continue
 		}
 
+		// 🔥 ambil retry count
+		retryKey := "ocr:retry:" + receiptID
+		retryCount, _ := configs.RedisClient.Get(ctx, retryKey).Int()
+
 		aiLimiter <- struct{}{} // lock AI
 		err = ocr.ProcessOCRString(receiptID)
 		<-aiLimiter // unlock
 
 		if err != nil {
-			// FAILED & set finished_at
-			ocr.SetOCRJobStatus(id, "FAILED", err.Error())
-			ocr.MarkAsFailed(receiptID, err.Error())
 			log.Println("[ERROR] OCR failed:", err)
+			if retryCount < 3 {
+				configs.RedisClient.Incr(ctx, retryKey)
+				configs.RedisClient.Expire(ctx, retryKey, time.Hour)
+
+				log.Println("[RETRY] Requeue:", receiptID, "retry:", retryCount+1)
+
+				// balik ke queue
+				configs.RedisClient.LPush(ctx, "ocr:queue", receiptID)
+
+				ocr.SetOCRJobStatus(id, "PROCESSING", "retrying...")
+
+			} else {
+				log.Println("[DEAD] Move to dead queue:", receiptID)
+				// masuk dead queue
+				configs.RedisClient.LPush(ctx, "ocr:dead", receiptID)
+
+				ocr.SetOCRJobStatus(id, "FAILED", err.Error())
+				ocr.MarkAsFailed(receiptID, err.Error())
+			}
+
+			// FAILED & set finished_at
+			//ocr.SetOCRJobStatus(id, "FAILED", err.Error())
+			//ocr.MarkAsFailed(receiptID, err.Error())
+
 		} else {
 			// DONE & set finished_at
 			ocr.SetOCRJobStatus(id, "DONE", "")
