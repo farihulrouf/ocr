@@ -3,7 +3,6 @@ package configs
 import (
 	"context"
 	storage "ocr-saas-backend/internal/storage/s3"
-	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -12,20 +11,21 @@ import (
 
 var S3Client *storage.S3Storage
 
-func InitS3() {
-
-	cfg, err := config.LoadDefaultConfig(
+func InitS3(cfg *Config) *storage.S3Storage {
+	awsCfg, err := config.LoadDefaultConfig(
 		context.TODO(),
-		config.WithRegion(os.Getenv("AWS_REGION")),
+		config.WithRegion(cfg.AWSRegion),
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(os.Getenv("S3_ENDPOINT"))
+	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(cfg.S3Endpoint)
 		o.UsePathStyle = true
 	})
 
-	S3Client = storage.NewS3Storage(client, os.Getenv("S3_BUCKET"))
+	S3Client = storage.NewS3Storage(client, cfg.S3Bucket)
+
+	return S3Client
 }

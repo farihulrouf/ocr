@@ -10,27 +10,30 @@ import (
 )
 
 func main() {
-	// Load .env
-	configs.LoadConfig()
-	configs.InitS3()
-	//configs.InitMinioConfig() // <-- baru kita punya MinIO config
-	// DB
-	configs.ConnectDB()
+	// ✅ Load config
+	cfg := configs.LoadConfig()
 
-	configs.ConnectRedis() // <==== wajib ini sebelum router
+	// ✅ Init dependencies (pakai cfg)
+	configs.InitS3(cfg)
+	configs.ConnectDB(cfg)
+	configs.ConnectRedis(cfg)
+
+	// ✅ Init Fiber
 	app := fiber.New()
 
-	// ✅ CORS ALLOW ALL (DEV ONLY)
+	// ✅ CORS (dev only)
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "*",
 		AllowHeaders: "*",
 	}))
 
-	app.Static("/uploads", "./uploads") // <==== ini tambahan
+	// ✅ Static file
+	app.Static("/uploads", "./uploads")
 
-	// Routes
+	// ✅ Routes
 	routes.SetupRoutes(app)
 
+	log.Println("🚀 API running on http://localhost:8080")
 	log.Fatal(app.Listen(":8080"))
 }
