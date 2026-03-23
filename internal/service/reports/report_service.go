@@ -34,16 +34,26 @@ func GetMyReports(
 func CreateReport(
 	tenantID, userID uuid.UUID,
 	title string,
-) error {
+) (*models.ExpenseReport, error) {
+
+	// GENERATE ID BARU DI SINI
+	newReportID := uuid.New()
 
 	report := &models.ExpenseReport{
+		ID:       newReportID, // Isi ID-nya secara manual
 		TenantID: tenantID,
 		UserID:   userID,
 		Title:    title,
 		Status:   "DRAFT",
 	}
 
-	return repo.Create(report)
+	// Simpan ke database
+	if err := repo.Create(report); err != nil {
+		return nil, err
+	}
+
+	// Sekarang report.ID sudah terisi dengan newReportID
+	return report, nil
 }
 
 func SubmitReport(
