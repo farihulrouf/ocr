@@ -48,13 +48,18 @@ func CreateReport(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"message": "invalid body"})
 	}
 
-	if err := reports.CreateReport(
-		tenantID, userID, body.Title,
-	); err != nil {
+	// Eksekusi create
+	newReport, err := reports.CreateReport(tenantID, userID, body.Title)
+	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"message": err.Error()})
 	}
 
-	return c.JSON(fiber.Map{"status": "success"})
+	// RESPONSE KE FRONTEND
+	// Frontend akan menerima: { "status": "success", "id": "uuid-laporan-baru" }
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"id":     newReport.ID,
+	})
 }
 
 func SubmitReport(c *fiber.Ctx) error {

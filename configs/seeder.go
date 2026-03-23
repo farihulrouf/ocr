@@ -5,6 +5,7 @@ import (
 	"ocr-saas-backend/internal/models"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -373,6 +374,83 @@ func SeedDatabase(db *gorm.DB) {
 		UserID:   admin3.ID,
 		Format:   "CSV",
 		FileURL:  "https://storage.googleapis.com/demo/t3_export.csv",
+	})
+
+	// ============================================================
+	// ================= TAMBAHAN GLOBAL / MISSING =================
+	// ============================================================
+
+	// TENANT USAGE (limit OCR per tenant)
+	db.Create(&models.TenantUsage{
+		TenantID: tenant1.ID,
+		OCRLimit: 5000,
+		OCRUsed:  120,
+	})
+
+	db.Create(&models.TenantUsage{
+		TenantID: tenant2.ID,
+		OCRLimit: 5000,
+		OCRUsed:  80,
+	})
+
+	db.Create(&models.TenantUsage{
+		TenantID: tenant3.ID,
+		OCRLimit: 5000,
+		OCRUsed:  200,
+	})
+
+	// OCR JOB (simulate background processing)
+	start := time.Now()
+	finish := start.Add(2 * time.Second)
+
+	db.Create(&models.OCRJob{
+		TenantID:   tenant1.ID,
+		ReceiptID:  rc1.ID,
+		Status:     "SUCCESS",
+		Engine:     "Google Vision API",
+		StartedAt:  &start,
+		FinishedAt: &finish,
+	})
+
+	db.Create(&models.OCRJob{
+		TenantID:   tenant2.ID,
+		ReceiptID:  rc2.ID,
+		Status:     "SUCCESS",
+		Engine:     "AWS Textract",
+		StartedAt:  &start,
+		FinishedAt: &finish,
+	})
+
+	db.Create(&models.OCRJob{
+		TenantID:     tenant3.ID,
+		ReceiptID:    rc3.ID,
+		Status:       "FAILED",
+		Engine:       "Tesseract",
+		ErrorMessage: "Low image quality",
+		StartedAt:    &start,
+		FinishedAt:   &finish,
+	})
+
+	// REFRESH TOKEN (simulate login session)
+	db.Create(&models.RefreshToken{
+		ID:        uuid.New(),
+		UserID:    admin1.ID,
+		Token:     "refresh_token_admin_1",
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	})
+
+	db.Create(&models.RefreshToken{
+		ID:        uuid.New(),
+		UserID:    admin2.ID,
+		Token:     "refresh_token_admin_2",
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	})
+
+	db.Create(&models.RefreshToken{
+		ID:        uuid.New(),
+		UserID:    admin3.ID,
+		Token:     "refresh_token_admin_3",
+		ExpiresAt: time.Now().Add(24 * time.Hour),
 	})
 
 	fmt.Println("🎉 Selesai! 3 Tenant & 18 Tabel berhasil di-seed.")

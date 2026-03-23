@@ -143,16 +143,22 @@ type ReceiptItem struct {
 // --- GROUP 4: WORKFLOW ---
 
 type ExpenseReport struct {
-	Base
-	TenantID uuid.UUID `gorm:"type:uuid" json:"tenant_id"`
-	UserID   uuid.UUID `gorm:"type:uuid" json:"user_id"`
-	//User        User      `gorm:"foreignKey:UserID" json:"user"`
+	Base // Pastikan Base TIDAK punya field bernama ID jika kamu tulis ID di bawah
+
+	// Gunakan primaryKey;default:gen_random_uuid() agar DB otomatis buat ID jika Go lupa isi
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID uuid.UUID `gorm:"type:uuid;not null" json:"tenant_id"`
+	UserID   uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
+
+	// json:"-" sudah benar agar tidak muncul di response API jika tidak perlu
 	User User `gorm:"foreignKey:UserID" json:"-"`
 
-	Title       string    `json:"title"`
-	TotalAmount int64     `json:"total_amount"`
-	Status      string    `gorm:"default:'PENDING'" json:"status"`
-	Receipts    []Receipt `gorm:"foreignKey:ReportID" json:"receipts"`
+	Title       string `gorm:"not null" json:"title"`
+	TotalAmount int64  `gorm:"default:0" json:"total_amount"`
+	Status      string `gorm:"type:varchar(20);default:'DRAFT'" json:"status"`
+
+	// Relasi ini penting agar saat preload di Go, datanya muncul
+	Receipts []Receipt `gorm:"foreignKey:ReportID" json:"receipts"`
 }
 
 type ApprovalWorkflow struct {

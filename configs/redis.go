@@ -3,7 +3,6 @@ package configs
 import (
 	"context"
 	"log"
-	"os"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
@@ -14,11 +13,10 @@ var (
 	Ctx         = context.Background()
 )
 
-func ConnectRedis() {
-
-	addr := os.Getenv("REDIS_ADDR")
-	password := os.Getenv("REDIS_PASSWORD")
-	dbStr := os.Getenv("REDIS_DB")
+func ConnectRedis(cfg *Config) *redis.Client {
+	addr := cfg.RedisAddr
+	password := cfg.RedisPass
+	dbStr := cfg.RedisDB
 
 	db := 0
 	if dbStr != "" {
@@ -39,8 +37,10 @@ func ConnectRedis() {
 	})
 
 	if err := RedisClient.Ping(Ctx).Err(); err != nil {
-		log.Fatalf("failed to connect redis: %v", err)
+		log.Fatalf("failed connect redis: %v", err)
 	}
 
-	log.Println("✅ Redis connected")
+	log.Println("✅ Redis Connected")
+
+	return RedisClient
 }

@@ -45,14 +45,6 @@ func UploadReceipt(c *fiber.Ctx) error {
 	// generate UUID untuk object key
 	objectKey := "receipts/" + uuid.New().String() + ext
 
-	// inisialisasi MinIO client
-	//storageClient := storage.NewMinioStorage(configs.MinioConfig)
-
-	// upload ke MinIO
-	//if err := storageClient.Upload(c.Context(), objectKey, f, file.Size, file.Header.Get("Content-Type")); err != nil {
-	//	return c.Status(500).JSON(fiber.Map{"status": "error", "message": "failed to upload to MinIO"})
-	//}
-
 	// upload ke S3
 	err = configs.S3Client.Upload(
 		c.Context(),
