@@ -190,31 +190,46 @@ func AddReceiptsToReport(tenantID, reportID uuid.UUID, receiptIDs []uuid.UUID) e
 		return errors.New("no receipt ids provided")
 	}
 
-	// 1️⃣ Pastikan report itu milik tenant
-	var report models.ExpenseReport
-	if err := configs.DB.
-		Where("id = ? AND tenant_id = ?", reportID, tenantID).
-		First(&report).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("report not found for this tenant")
-		}
-		return err
-	}
+	// Gunakan Transaction agar jika salah satu gagal, semua dibatalkan
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
 
-	// 2️⃣ Update setiap receipt -> set report_id
-	for _, rid := range receiptIDs {
-		res := configs.DB.Model(&models.Receipt{}).
-			Where("id = ? AND tenant_id = ?", rid, tenantID).
-			Updates(map[string]interface{}{
-				"report_id": reportID,
-			})
-		if res.Error != nil {
-			return res.Error
+		// 1️⃣ Pastikan report ada dan milik tenant
+		var report models.ExpenseReport
+		if err := tx.Where("id = ? AND tenant_id = ?", reportID, tenantID).
+			First(&report).Error; err != nil {
+			return errors.New("report not found")
 		}
-		if res.RowsAffected == 0 {
-			return errors.New("one or more receipts not found or do not belong to tenant")
-		}
-	}
 
-	return nil
+		// 2️⃣ Update setiap receipt -> set report_id
+		for _, rid := range receiptIDs {
+			res := tx.Model(&models.Receipt{}).
+				Where("id = ? AND tenant_id = ?", rid, tenantID).
+				Update("report_id", reportID)
+
+			if res.Error != nil {
+				return res.Error
+			}
+			if res.RowsAffected == 0 {
+				return errors.New("receipt not found: " + rid.String())
+			}
+		}
+
+		// 3️⃣ HITUNG TOTAL BARU (Logic Utama yang Kurang)
+		var newTotal int64
+		err := tx.Model(&models.Receipt{}).
+			Where("report_id = ? AND tenant_id = ?", reportID, tenantID).
+			Select("COALESCE(SUM(total_amount), 0)").
+			Scan(&newTotal).Error
+
+		if err != nil {
+			return err
+		}
+
+		// 4️⃣ UPDATE TOTAL_AMOUNT DI EXPENSE_REPORT
+		if err := tx.Model(&report).Update("total_amount", newTotal).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
