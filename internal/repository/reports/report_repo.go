@@ -10,15 +10,23 @@ import (
 func ListMyReports(
 	tenantID, userID uuid.UUID,
 	page, pageSize int,
+	status string, // ✅ Tambah parameter status
 ) ([]models.ExpenseReport, int64, error) {
 
 	var rows []models.ExpenseReport
 	var total int64
 
+	// Base Query
 	db := configs.DB.
 		Model(&models.ExpenseReport{}).
 		Where("tenant_id = ? AND user_id = ?", tenantID, userID)
 
+	// ✅ Filter berdasarkan status jika dikirim dari UI
+	if status != "" && status != "all" {
+		db = db.Where("status = ?", status)
+	}
+
+	// Hitung Total setelah difilter
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
