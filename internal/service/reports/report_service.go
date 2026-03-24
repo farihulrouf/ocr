@@ -14,10 +14,11 @@ import (
 func GetMyReports(
 	tenantID, userID uuid.UUID,
 	page, pageSize int,
+	status string, // ✅ Tambah parameter status
 ) ([]dto.ExpenseReportResponse, int64, error) {
 
 	rows, total, err := repo.ListMyReports(
-		tenantID, userID, page, pageSize,
+		tenantID, userID, page, pageSize, status,
 	)
 	if err != nil {
 		return nil, 0, err
@@ -190,21 +191,23 @@ func AddReceiptsToReport(tenantID, reportID uuid.UUID, receiptIDs []uuid.UUID) e
 		return errors.New("no receipt ids provided")
 	}
 
-	// Gunakan Transaction agar jika salah satu gagal, semua dibatalkan
 	return configs.DB.Transaction(func(tx *gorm.DB) error {
 
-		// 1️⃣ Pastikan report ada dan milik tenant
+		// 1️⃣ Pastikan report ada
 		var report models.ExpenseReport
 		if err := tx.Where("id = ? AND tenant_id = ?", reportID, tenantID).
 			First(&report).Error; err != nil {
 			return errors.New("report not found")
 		}
 
-		// 2️⃣ Update setiap receipt -> set report_id
+		// 2️⃣ Update setiap receipt: set report_id DAN status jadi 'REPORTED'
 		for _, rid := range receiptIDs {
 			res := tx.Model(&models.Receipt{}).
 				Where("id = ? AND tenant_id = ?", rid, tenantID).
-				Update("report_id", reportID)
+				Updates(map[string]interface{}{
+					"report_id": reportID,
+					"status":    "REPORTED", // ✅ Status berubah jadi REPORTED
+				})
 
 			if res.Error != nil {
 				return res.Error
@@ -214,7 +217,7 @@ func AddReceiptsToReport(tenantID, reportID uuid.UUID, receiptIDs []uuid.UUID) e
 			}
 		}
 
-		// 3️⃣ HITUNG TOTAL BARU (Logic Utama yang Kurang)
+		// 3️⃣ Hitung Total Baru dari semua receipt yang ada di report ini
 		var newTotal int64
 		err := tx.Model(&models.Receipt{}).
 			Where("report_id = ? AND tenant_id = ?", reportID, tenantID).
@@ -225,11 +228,47 @@ func AddReceiptsToReport(tenantID, reportID uuid.UUID, receiptIDs []uuid.UUID) e
 			return err
 		}
 
-		// 4️⃣ UPDATE TOTAL_AMOUNT DI EXPENSE_REPORT
+		// 4️⃣ Update Total Amount di Expense Report
+		// Menggunakan Select("total_amount") agar GORM hanya update kolom itu saja
 		if err := tx.Model(&report).Update("total_amount", newTotal).Error; err != nil {
 			return err
 		}
 
 		return nil
+	})
+}
+
+func RemoveReceiptFromReport(tenantID, reportID, receiptID uuid.UUID) error {
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
+
+		// 1. Pastikan Report-nya ada dan statusnya masih DRAFT
+		var report models.ExpenseReport
+		if err := tx.Where("id = ? AND tenant_id = ? AND status = ?", reportID, tenantID, "DRAFT").
+			First(&report).Error; err != nil {
+			return errors.New("laporan tidak ditemukan atau sudah di-submit")
+		}
+
+		// 2. INI KUNCINYA: Set report_id jadi NULL dan status balik ke SUCCESS
+		// Kita pakai map supaya gorm mau update ke NULL
+		err := tx.Model(&models.Receipt{}).
+			Where("id = ? AND report_id = ? AND tenant_id = ?", receiptID, reportID, tenantID).
+			Updates(map[string]interface{}{
+				"report_id": nil,       // Menghapus kaitan ke laporan
+				"status":    "SUCCESS", // Mengembalikan status agar bisa dipakai lagi
+			}).Error
+
+		if err != nil {
+			return err
+		}
+
+		// 3. HITUNG ULANG TOTAL_AMOUNT Laporan
+		var newTotal int64
+		tx.Model(&models.Receipt{}).
+			Where("report_id = ? AND tenant_id = ?", reportID, tenantID).
+			Select("COALESCE(SUM(total_amount), 0)").
+			Scan(&newTotal)
+
+		// 4. Update total_amount di tabel expense_reports
+		return tx.Model(&report).Update("total_amount", newTotal).Error
 	})
 }

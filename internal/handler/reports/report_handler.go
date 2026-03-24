@@ -12,11 +12,13 @@ func GetMyReports(c *fiber.Ctx) error {
 	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
 	userID := uuid.MustParse(c.Locals("user_id").(string))
 
+	// ✅ Ambil status dari query param: /api/emp/reports?status=DRAFT
+	status := c.Query("status", "")
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
 	data, total, err := reports.GetMyReports(
-		tenantID, userID, page, pageSize,
+		tenantID, userID, page, pageSize, status,
 	)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -32,6 +34,7 @@ func GetMyReports(c *fiber.Ctx) error {
 			"page":      page,
 			"page_size": pageSize,
 			"total":     total,
+			"status":    status, // Kembalikan status di meta untuk tracing
 		},
 	})
 }
@@ -192,4 +195,18 @@ func AddReceiptsToReport(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"status": "success"})
+}
+
+// DELETE /emp/reports/:id/receipts/:receiptId
+func RemoveReceiptFromReport(c *fiber.Ctx) error {
+	reportID := uuid.MustParse(c.Params("id"))
+	receiptID := uuid.MustParse(c.Params("receiptId"))
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	err := reports.RemoveReceiptFromReport(tenantID, reportID, receiptID)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"status": "success", "message": "Receipt removed from report"})
 }

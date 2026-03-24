@@ -19,35 +19,44 @@ func GetMyReceipts(
 	var receipts []models.Receipt
 	var total int64
 
+	// 1. Inisialisasi DB dengan kondisi dasar (Tenant & User)
 	db := configs.DB.
 		Model(&models.Receipt{}).
 		Preload("AccountCategory").
 		Where("tenant_id = ? AND user_id = ?", tenantID, userID)
 
-	// 🔍 search store name
+	// 2. Logic Search (Store Name)
 	if q != "" {
 		db = db.Where("store_name ILIKE ?", "%"+q+"%")
 	}
 
-	// 🟡 filter status
-	if status != "" {
+	// 3. REVISI LOGIC STATUS (Default & Bypass)
+	if status == "" {
+		// Jika parameter status tidak dikirim, default hanya tampilkan SUCCESS
+		// Ini biar halaman "Available Receipts" nggak kotor sama yang sudah di-report
+		db = db.Where("status = ?", "SUCCESS")
+	} else if status != "all" {
+		// Jika status diisi (misal: 'REPORTED' atau 'PENDING'), filter sesuai isi tersebut
+		// Tapi jika isinya 'all', blok ini dilewati (bypass), jadi nampil semua status
 		db = db.Where("status = ?", status)
 	}
 
-	// count
+	// 4. Hitung Total Data (setelah filter diterapkan)
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// 5. Pagination & Sorting
 	offset := (page - 1) * pageSize
 
-	// sorting
 	if sort != "" {
 		db = db.Order(sort)
 	} else {
+		// Default sorting: Struk terbaru ada di atas
 		db = db.Order("transaction_date DESC")
 	}
 
+	// 6. Eksekusi Query Final
 	err := db.
 		Limit(pageSize).
 		Offset(offset).
