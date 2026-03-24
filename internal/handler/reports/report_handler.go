@@ -193,3 +193,17 @@ func AddReceiptsToReport(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": "success"})
 }
+
+// DELETE /emp/reports/:id/receipts/:receiptId
+func RemoveReceiptFromReport(c *fiber.Ctx) error {
+	reportID := uuid.MustParse(c.Params("id"))
+	receiptID := uuid.MustParse(c.Params("receiptId"))
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	err := reports.RemoveReceiptFromReport(tenantID, reportID, receiptID)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"status": "success", "message": "Receipt removed from report"})
+}
