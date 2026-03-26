@@ -135,6 +135,7 @@ func GetAllReceipts(
 }
 
 func GetReceiptDetail(
+	storage *s3.S3Storage, // Tambah parameter ini
 	tenantID uuid.UUID,
 	receiptID uuid.UUID,
 ) (*dto.ReceiptDetailResponse, error) {
@@ -152,6 +153,18 @@ func GetReceiptDetail(
 	}
 
 	response := mapReceiptToDetailDTO(receipt)
+
+	// 🔥 PENTING: Generate Pre-signed URL di sini
+	if receipt.ImageURL != "" && storage != nil {
+		// Generate URL berlaku 1 jam
+		url, err := storage.GetFileURL(context.Background(), receipt.ImageURL, time.Hour)
+		if err != nil {
+			log.Println("failed to generate pre-signed URL:", err)
+		} else {
+			response.ImageURL = url // URL database ditimpa dengan URL S3 (Localstack)
+		}
+	}
+
 	return &response, nil
 }
 

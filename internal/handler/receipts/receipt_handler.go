@@ -97,36 +97,34 @@ func GetAllReceipts(c *fiber.Ctx) error {
 }
 
 func GetReceiptDetail(c *fiber.Ctx) error {
+	// 1. Ambil Tenant ID dari Locals
 	tenantIDStr, ok := c.Locals("tenant_id").(string)
 	if !ok {
-		return fiber.NewError(
-			fiber.StatusUnauthorized,
-			"invalid tenant context",
-		)
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid tenant context")
 	}
 
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
-		return fiber.NewError(
-			fiber.StatusUnauthorized,
-			"invalid tenant id",
-		)
+		return fiber.NewError(fiber.StatusUnauthorized, "invalid tenant id")
 	}
 
+	// 2. Ambil Receipt ID dari Params
 	receiptID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
-		return fiber.NewError(
-			fiber.StatusBadRequest,
-			"invalid receipt id",
-		)
+		return fiber.NewError(fiber.StatusBadRequest, "invalid receipt id")
 	}
 
-	result, err := service.GetReceiptDetail(tenantID, receiptID)
+	// 3. Panggil Service dengan menyertakan S3Client dari Config
+	// Pastikan di package service, parameter pertamanya sudah menerima *storage.S3Storage
+	result, err := service.GetReceiptDetail(
+		configs.S3Client, // Tambahkan ini agar bisa generate Pre-signed URL
+		tenantID,
+		receiptID,
+	)
+
 	if err != nil {
-		return fiber.NewError(
-			fiber.StatusNotFound,
-			err.Error(),
-		)
+		// Kita sesuaikan handling error-nya agar lebih informatif
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
 	}
 
 	return c.JSON(result)
