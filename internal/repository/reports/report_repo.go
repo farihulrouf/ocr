@@ -72,11 +72,15 @@ func Update(report *models.ExpenseReport) error {
 func UpdateReportStatus(
 	tenantID, reportID uuid.UUID,
 	status string,
+	managerID *uuid.UUID, // TAMBAHKAN PARAMETER KE-4 DI SINI
 ) error {
 	return configs.DB.
 		Model(&models.ExpenseReport{}).
 		Where("id = ? AND tenant_id = ?", reportID, tenantID).
-		Update("status", status).
+		Updates(map[string]interface{}{
+			"status":         status,
+			"approved_by_id": managerID, // MENGISI KOLOM PENANGGUNG JAWAB
+		}).
 		Error
 }
 

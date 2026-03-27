@@ -130,27 +130,32 @@ func GetPendingReports(
 	return result, total, nil
 }
 
-func ApproveReport(
-	tenantID, reportID uuid.UUID,
-) error {
+func ApproveReport(tenantID, reportID, managerID uuid.UUID) error {
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. Update status laporan dan siapa yang approve
+		err := tx.Model(&models.ExpenseReport{}).
+			Where("id = ? AND tenant_id = ?", reportID, tenantID).
+			Updates(map[string]interface{}{
+				"status":         "APPROVED",
+				"approved_by_id": managerID, // Mencatat ID Manajer
+			}).Error
+		if err != nil {
+			return err
+		}
 
-	report, err := repo.GetByID(tenantID, reportID)
-	if err != nil {
-		return err
-	}
-
-	if report.Status != "SUBMITTED" {
-		return errors.New("report is not submitted")
-	}
-	return repo.UpdateReportStatus(
-		tenantID,
-		reportID,
-		"APPROVED",
-	)
+		// 2. Catat ke ApprovalLog (Sejarah)
+		log := models.ApprovalLog{
+			ExpenseReportID: &reportID,
+			UserID:          managerID, // ID Manajer yang login
+			Action:          "APPROVE",
+			Comment:         "Laporan disetujui oleh Manajer",
+		}
+		return tx.Create(&log).Error
+	})
 }
 
 func RejectReport(
-	tenantID, reportID uuid.UUID,
+	tenantID, reportID, managerID uuid.UUID, // <-- Tambah managerID di sini
 ) error {
 
 	report, err := repo.GetByID(tenantID, reportID)
@@ -159,12 +164,15 @@ func RejectReport(
 	}
 
 	if report.Status != "SUBMITTED" {
-		return errors.New("report is not submitted")
+		return errors.New("laporan belum di-submit, tidak bisa ditolak")
 	}
+
+	// Gunakan fungsi repo yang bisa mengupdate status sekaligus mencatat pelakunya
 	return repo.UpdateReportStatus(
 		tenantID,
 		reportID,
 		"REJECTED",
+		&managerID, // <-- Kirim pointer managerID ke repo
 	)
 }
 

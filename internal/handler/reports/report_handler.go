@@ -126,25 +126,48 @@ func GetPendingReports(c *fiber.Ctx) error {
 }
 
 func ApproveReport(c *fiber.Ctx) error {
+	// 1. Ambil Tenant ID dari context (Middleware)
 	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
-	reportID := uuid.MustParse(c.Params("id"))
 
-	if err := reports.ApproveReport(tenantID, reportID); err != nil {
+	// 2. AMBIL USER ID (Manajer) dari context (Middleware)
+	// Pastikan key-nya sesuai dengan yang ada di middleware Auth Mas (misal: "user_id")
+	managerID := uuid.MustParse(c.Locals("user_id").(string))
+
+	// 3. Ambil Report ID dari URL Parameter
+	reportID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"message": "ID laporan tidak valid"})
+	}
+
+	// 4. PANGGIL SERVICE dengan 3 PARAMETER (tenantID, reportID, managerID)
+	if err := reports.ApproveReport(tenantID, reportID, managerID); err != nil {
 		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
 	}
 
-	return c.JSON(fiber.Map{"status": "success"})
+	return c.JSON(fiber.Map{
+		"status":      "success",
+		"message":     "Laporan berhasil disetujui",
+		"approved_by": managerID, // Opsional: kirim balik ID approver-nya
+	})
 }
 
 func RejectReport(c *fiber.Ctx) error {
+	// 1. Ambil TenantID dan ManagerID dari JWT Locals
 	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
-	reportID := uuid.MustParse(c.Params("id"))
+	managerID := uuid.MustParse(c.Locals("user_id").(string)) // <-- Ambil ini
 
-	if err := reports.RejectReport(tenantID, reportID); err != nil {
+	// 2. Ambil ReportID dari URL Params
+	reportID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"message": "ID laporan tidak valid"})
+	}
+
+	// 3. Panggil service dengan 3 parameter
+	if err := reports.RejectReport(tenantID, reportID, managerID); err != nil {
 		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
 	}
 
-	return c.JSON(fiber.Map{"status": "success"})
+	return c.JSON(fiber.Map{"status": "success", "rejected_by": managerID})
 }
 
 func GetMyReportDetail(c *fiber.Ctx) error {

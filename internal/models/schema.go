@@ -157,6 +157,10 @@ type ExpenseReport struct {
 	TotalAmount int64  `gorm:"default:0" json:"total_amount"`
 	Status      string `gorm:"type:varchar(20);default:'DRAFT'" json:"status"`
 
+	// --- TAMBAHKAN DUA FIELD INI ---
+	ApprovedByID *uuid.UUID `gorm:"type:uuid" json:"approved_by_id"`
+	Approver     *User      `gorm:"foreignKey:ApprovedByID" json:"approver"`
+	// ------------------------------
 	// Relasi ini penting agar saat preload di Go, datanya muncul
 	Receipts []Receipt `gorm:"foreignKey:ReportID" json:"receipts"`
 }
