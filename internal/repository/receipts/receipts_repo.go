@@ -144,10 +144,10 @@ func ConfirmReceiptByID(
 	return configs.DB.
 		Model(&models.Receipt{}).
 		Where(`
-			id = ? 
-			AND tenant_id = ?
-			AND status = 'PROCESSING'
-		`, receiptID, tenantID).
+            id = ? 
+            AND tenant_id = ?
+            AND (status = 'PROCESSING' OR status = 'DRAFT' OR status = 'SUCCESS')
+        `, receiptID, tenantID).
 		Updates(map[string]interface{}{
 			"total_amount":     total,
 			"transaction_date": date,
@@ -393,13 +393,14 @@ func (r *receiptItemRepo) Update(
 
 	return configs.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
-		// 1️⃣ update item
+		// 1️⃣ update item - Hapus updated_at karena kolomnya tidak ada di DB
 		if err := tx.
 			Model(&models.ReceiptItem{}).
 			Where("id = ?", item.ID).
 			Updates(map[string]interface{}{
-				"amount":     item.Amount,
-				"updated_at": gorm.Expr("NOW()"),
+				"description": item.Description, // ✅ TAMBAHKAN INI MAS
+				"amount":      item.Amount,
+				// "updated_at": gorm.Expr("NOW()"), // Baris ini penyebab error, sudah dimatikan
 			}).Error; err != nil {
 			return err
 		}
@@ -480,9 +481,10 @@ func UpdateReceiptByID(
 		updates["total_amount"] = *total
 	}
 
+	// ✅ PERBAIKAN: Izinkan jika status DRAFT atau SUCCESS
 	return configs.DB.
 		Model(&models.Receipt{}).
-		Where("id = ? AND tenant_id = ? AND status = 'DRAFT'", receiptID, tenantID).
+		Where("id = ? AND tenant_id = ? AND (status = 'DRAFT' OR status = 'SUCCESS')", receiptID, tenantID).
 		Updates(updates).
 		Error
 }
@@ -510,7 +512,8 @@ func IsReceiptEditable(
 		return false, err
 	}
 
-	if r.Status != "DRAFT" {
+	// ✅ Izinkan SUCCESS agar UI tidak menampilkan pesan "Already Final"
+	if r.Status != "DRAFT" && r.Status != "SUCCESS" {
 		return false, nil
 	}
 

@@ -135,6 +135,7 @@ func GetAllReceipts(
 }
 
 func GetReceiptDetail(
+	storage *s3.S3Storage, // Tambah parameter ini
 	tenantID uuid.UUID,
 	receiptID uuid.UUID,
 ) (*dto.ReceiptDetailResponse, error) {
@@ -152,6 +153,18 @@ func GetReceiptDetail(
 	}
 
 	response := mapReceiptToDetailDTO(receipt)
+
+	// 🔥 PENTING: Generate Pre-signed URL di sini
+	if receipt.ImageURL != "" && storage != nil {
+		// Generate URL berlaku 1 jam
+		url, err := storage.GetFileURL(context.Background(), receipt.ImageURL, time.Hour)
+		if err != nil {
+			log.Println("failed to generate pre-signed URL:", err)
+		} else {
+			response.ImageURL = url // URL database ditimpa dengan URL S3 (Localstack)
+		}
+	}
+
 	return &response, nil
 }
 
@@ -227,7 +240,7 @@ func ConfirmReceipt(
 	date time.Time,
 ) error {
 
-	// 1️⃣ ambil detail receipt
+	// 1️⃣ Ambil detail receipt
 	receipt, err := receipts.GetReceiptDetailByID(tenantID, receiptID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -235,12 +248,13 @@ func ConfirmReceipt(
 		}
 		return err
 	}
-	// 2️⃣ validasi status
-	if receipt.Status != "PROCESSING" && receipt.Status != "DRAFT" {
+
+	// ✅ PERBAIKAN: Izinkan konfirmasi jika statusnya PROCESSING, DRAFT, atau SUCCESS
+	if receipt.Status != "PROCESSING" && receipt.Status != "DRAFT" && receipt.Status != "SUCCESS" {
 		return ErrReceiptAlreadyFinal
 	}
 
-	// 3️⃣ optional: validasi total dari items
+	// 3️⃣ Validasi total dari items
 	var sum int64
 	for _, item := range receipt.LineItems {
 		sum += item.Amount
@@ -249,7 +263,8 @@ func ConfirmReceipt(
 	if sum > 0 && sum != total {
 		return ErrInvalidTotalAmount
 	}
-	// 4️⃣ update receipt
+
+	// 4️⃣ Update status ke CONFIRMED melalui repository
 	return receipts.ConfirmReceiptByID(
 		tenantID,
 		receiptID,
@@ -582,19 +597,20 @@ func UpdateReceiptItem(ctx context.Context, itemID uint, name string, price int6
 		return ErrReceiptNotEditable
 	}
 
-	// Cek status: hanya DRAFT bisa diupdate
-	if item.Receipt.Status != "DRAFT" {
+	// ✅ PERBAIKAN: Izinkan update jika status DRAFT atau SUCCESS (Hasil OCR)
+	// Sebelumnya hanya allow "DRAFT", sekarang kita tambah "SUCCESS"
+	if item.Receipt.Status != "DRAFT" && item.Receipt.Status != "SUCCESS" {
 		return ErrReceiptNotEditable
 	}
 
-	// ✨ Cek report status
+	// Cek report status
 	if item.Receipt.ReportID != nil {
 		var report models.ExpenseReport
 		if err := configs.DB.First(&report, "id = ?", *item.Receipt.ReportID).Error; err != nil {
 			return err
 		}
 		if report.Status != "DRAFT" {
-			return ErrReceiptNotEditable // report sudah submitted
+			return ErrReceiptNotEditable
 		}
 	}
 

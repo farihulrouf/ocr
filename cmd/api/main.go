@@ -16,6 +16,8 @@ func main() {
 	// ✅ Init dependencies (pakai cfg)
 	configs.InitS3(cfg)
 	configs.ConnectDB(cfg)
+	configs.SeedDatabase(configs.DB)
+	//configs.SeedDatabase(cfg)
 	configs.ConnectRedis(cfg)
 
 	// ✅ Init Fiber

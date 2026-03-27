@@ -3,6 +3,7 @@ package routes
 import (
 	"ocr-saas-backend/internal/handler"
 	"ocr-saas-backend/internal/handler/categories"
+	"ocr-saas-backend/internal/handler/dashboard"
 	"ocr-saas-backend/internal/handler/receipts"
 	"ocr-saas-backend/internal/handler/tenants"
 
@@ -116,7 +117,7 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Delete("/reports/:id/receipts/:receiptId", reports.RemoveReceiptFromReport)
 	emprole.Post("/reports/:id/receipts", reports.AddReceiptsToReport)
 	emprole.Get("/reports/:id", reports.GetMyReportDetail)
-
+	emprole.Get("/dashboard", dashboard.GetEmployeeDashboard)
 	// OCR Upload
 
 	//emprole.Post("/receipt/upload", ocr.UploadOCR)
@@ -141,6 +142,7 @@ func SetupRoutes(app *fiber.App) {
 	manager.Post("/receipt/:id/items", receipts.AddReceiptItem)
 	manager.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", receipts.DeleteReceiptItem)
+	manager.Get("/dashboard", dashboard.GetManagerDashboard)
 	// =============================
 	// MANAGER - REPORT APPROVAL
 	// =============================
