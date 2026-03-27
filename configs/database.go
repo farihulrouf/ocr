@@ -12,39 +12,57 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// masih pakai global (nanti kita hapus di step berikutnya)
 var DB *gorm.DB
 
 func ConnectDB(cfg *Config) *gorm.DB {
-	host := cfg.DBHost
-	user := cfg.DBUser
-	password := cfg.DBPassword
-	dbname := cfg.DBName
-	port := cfg.DBPort
-
-	sslmode := "disable"
+	fmt.Println("🔥 TRY CONNECT DB...")
 
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Jakarta",
-		host, user, password, dbname, port, sslmode,
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
+		cfg.DBHost,
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBName,
+		cfg.DBPort,
+		cfg.DBSSLMode,
+		cfg.DBTimeZone,
+	)
+
+	// 🔥 SAFE DEBUG
+	fmt.Println("DSN DEBUG:",
+		fmt.Sprintf("host=%s user=%s dbname=%s port=%s sslmode=%s",
+			cfg.DBHost,
+			cfg.DBUser,
+			cfg.DBName,
+			cfg.DBPort,
+			cfg.DBSSLMode,
+		),
 	)
 
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: logger.Default.LogMode(logger.Info),
 	})
 
 	if err != nil {
 		log.Fatalf("❌ Gagal konek DB: %v", err)
 	}
 
-	log.Println("✅ Database connected")
+	log.Println("✅ GORM connected")
 
 	sqlDB, err := DB.DB()
 	if err != nil {
 		log.Fatalf("❌ Gagal ambil sql.DB: %v", err)
 	}
 
+	// 🔥 WAJIB — biar gak false positive
+	if err := sqlDB.Ping(); err != nil {
+		log.Fatalf("❌ DB PING FAILED: %v", err)
+	}
+
+	log.Println("✅ DB PING SUCCESS")
+
+	// Pool config
 	sqlDB.SetMaxOpenConns(20)
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(time.Hour)
