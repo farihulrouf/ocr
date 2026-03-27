@@ -35,6 +35,8 @@ func ListMyReports(
 
 	err := db.
 		Preload("Receipts").
+		Preload("User").     // Load data pengaju
+		Preload("Approver"). // Load data manajer (penting!)
 		Order("created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
@@ -51,6 +53,8 @@ func GetByID(
 
 	err := configs.DB.
 		Preload("Receipts").
+		Preload("User").     // ✅ TAMBAHKAN INI (Untuk data pengaju)
+		Preload("Approver"). // ✅ TAMBAHKAN INI (Untuk data manajer/approver)
 		Where("tenant_id = ? AND id = ?", tenantID, id).
 		First(&report).Error
 

@@ -28,6 +28,16 @@ func ToExpenseReportResponse(r models.ExpenseReport) dto.ExpenseReportResponse {
 			Email: r.User.Email,
 		}
 	}
+	approver := dto.UserResponse{}
+
+	// 2. CEK: Jika status bukan DRAFT/SUBMITTED dan relasi Approver ada
+	if (r.Status == "APPROVED" || r.Status == "REJECTED") && r.Approver != nil {
+		approver = dto.UserResponse{
+			ID:    r.Approver.ID.String(),
+			Name:  r.Approver.Name,
+			Email: r.Approver.Email,
+		}
+	}
 
 	return dto.ExpenseReportResponse{
 		ID:          r.ID.String(),
@@ -35,7 +45,8 @@ func ToExpenseReportResponse(r models.ExpenseReport) dto.ExpenseReportResponse {
 		TotalAmount: r.TotalAmount,
 		Status:      r.Status,
 		CreatedAt:   r.CreatedAt,
-		User:        user, // ⬅️ TAMBAHAN
+		User:        user,     // ⬅️ TAMBAHAN
+		Approver:    approver, // <--- TAMBAHKAN INI
 		Receipts:    receipts,
 	}
 }
