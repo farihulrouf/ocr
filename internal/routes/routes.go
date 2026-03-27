@@ -102,7 +102,9 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Delete("/receipt/:id", receipts.DeleteReceipt)
 	emprole.Post("/receipt/:id/items", receipts.AddReceiptItem)
 	emprole.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
-
+	// --- TAMBAHKAN BARIS INI ---
+	// Endpoint: GET /v0/api/emp/receipt/:id/status
+	emprole.Get("/receipt/:id/status", receipts.GetReceiptStatusHandler)
 	//api.Post("/ocr/receipt", handler.UploadReceipt)
 
 	// =============================

@@ -765,3 +765,48 @@ func UpdateReceipt(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": "updated"})
 }
+
+// internal/handler/receipt_handler.go
+
+func GetReceiptStatusHandler(c *fiber.Ctx) error {
+	// 1. Proteksi: Ambil data user yang login dari context middleware
+	tenantID, okT := c.Locals("tenant_id").(string)
+	userID, okU := c.Locals("user_id").(string)
+
+	if !okT || !okU {
+		return c.Status(401).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Unauthorized: Session missing",
+		})
+	}
+
+	// 2. Ambil ID receipt dari Parameter URL
+	idStr := c.Params("id")
+	receiptID, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid Receipt ID format",
+		})
+	}
+
+	// 3. Panggil service dengan filter keamanan
+	status, err := service.CheckStatus(
+		receiptID,
+		uuid.MustParse(tenantID),
+		uuid.MustParse(userID),
+	)
+
+	if err != nil {
+		// Jika tidak ketemu (atau milik orang lain), kita kasih 404
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Receipt not found or access denied",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"id":     receiptID,
+		"status": status,
+	})
+}

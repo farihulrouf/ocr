@@ -705,3 +705,9 @@ func UpdateReceipt(
 		total,
 	)
 }
+
+// internal/service/ocr/service.go
+
+func CheckStatus(id uuid.UUID, tenantID uuid.UUID, userID uuid.UUID) (string, error) {
+	return receipts.GetReceiptStatus(id, tenantID, userID)
+}

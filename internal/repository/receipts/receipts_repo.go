@@ -523,3 +523,18 @@ func IsReceiptEditable(
 
 	return true, nil
 }
+
+// internal/repository/ocr/repository.go
+
+func GetReceiptStatus(id uuid.UUID, tenantID uuid.UUID, userID uuid.UUID) (string, error) {
+	var result struct {
+		Status string
+	}
+	// Pastikan struk yang dicari memang milik user dan tenant tersebut
+	err := configs.DB.Model(&models.Receipt{}).
+		Select("status").
+		Where("id = ? AND tenant_id = ? AND user_id = ?", id, tenantID, userID).
+		First(&result).Error
+
+	return result.Status, err
+}
