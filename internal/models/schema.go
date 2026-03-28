@@ -246,3 +246,22 @@ type OCRJob struct {
 	StartedAt  *time.Time `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at"`
 }
+
+type Budget struct {
+	Base
+	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
+
+	// Siapa Manajer yang bertanggung jawab/membuat budget ini
+	CreatedByID uuid.UUID `gorm:"type:uuid;not null" json:"created_by_id"`
+	Creator     User      `gorm:"foreignKey:CreatedByID" json:"creator"`
+
+	DepartmentID *uuid.UUID  `gorm:"type:uuid;index" json:"department_id"`
+	Department   *Department `gorm:"foreignKey:DepartmentID" json:"department"`
+
+	Category    string `gorm:"type:varchar(100);index" json:"category"`
+	LimitAmount int64  `gorm:"not null" json:"limit_amount"`
+	SpentAmount int64  `gorm:"default:0" json:"spent_amount"`
+
+	Month int `json:"month"`
+	Year  int `json:"year"`
+}

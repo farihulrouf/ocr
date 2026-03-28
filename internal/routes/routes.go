@@ -2,6 +2,7 @@ package routes
 
 import (
 	"ocr-saas-backend/internal/handler"
+	"ocr-saas-backend/internal/handler/budgets"
 	"ocr-saas-backend/internal/handler/categories"
 	"ocr-saas-backend/internal/handler/dashboard"
 	"ocr-saas-backend/internal/handler/receipts"
@@ -145,6 +146,12 @@ func SetupRoutes(app *fiber.App) {
 	manager.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", receipts.DeleteReceiptItem)
 	manager.Get("/dashboard", dashboard.GetManagerDashboard)
+
+	// --- BUDGET MANAGEMENT (FITUR BARU) ---
+	manager.Get("/budget", budgets.ListBudgets)          // List budget tenant
+	manager.Post("/budget", budgets.HandleSetBudget)     // Set/Update budget
+	manager.Get("/budget/stats", budgets.GetBudgetStats) // Data grafik budget vs spent
+
 	// =============================
 	// MANAGER - REPORT APPROVAL
 	// =============================

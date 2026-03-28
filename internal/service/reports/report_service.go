@@ -6,6 +6,7 @@ import (
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/models"
 	repo "ocr-saas-backend/internal/repository/reports"
+	"ocr-saas-backend/internal/service/budgets"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -132,25 +133,37 @@ func GetPendingReports(
 
 func ApproveReport(tenantID, reportID, managerID uuid.UUID) error {
 	return configs.DB.Transaction(func(tx *gorm.DB) error {
-		// 1. Update status laporan dan siapa yang approve
+		// 0. Ambil data laporan dulu untuk tahu nominal pengeluarannya
+		var report models.ExpenseReport
+		if err := tx.Where("id = ? AND tenant_id = ?", reportID, tenantID).First(&report).Error; err != nil {
+			return err
+		}
+
+		// 1. POTONG BUDGET (Logic Baru)
+		// Gunakan fungsi ConsumeBudgetLogic agar spent_amount di tabel budgets bertambah
+		if err := budgets.ConsumeBudgetLogic(tx, tenantID, report.TotalAmount); err != nil {
+			return err // Jika budget tidak cukup, transaksi gagal (Rollback)
+		}
+
+		// 2. Update status laporan dan siapa yang approve
 		err := tx.Model(&models.ExpenseReport{}).
 			Where("id = ? AND tenant_id = ?", reportID, tenantID).
 			Updates(map[string]interface{}{
 				"status":         "APPROVED",
-				"approved_by_id": managerID, // Mencatat ID Manajer
+				"approved_by_id": managerID,
 			}).Error
 		if err != nil {
 			return err
 		}
 
-		// 2. Catat ke ApprovalLog (Sejarah)
-		log := models.ApprovalLog{
+		// 3. Catat ke ApprovalLog (Sejarah)
+		approvalLog := models.ApprovalLog{
 			ExpenseReportID: &reportID,
-			UserID:          managerID, // ID Manajer yang login
+			UserID:          managerID,
 			Action:          "APPROVE",
 			Comment:         "Laporan disetujui oleh Manajer",
 		}
-		return tx.Create(&log).Error
+		return tx.Create(&approvalLog).Error
 	})
 }
 
