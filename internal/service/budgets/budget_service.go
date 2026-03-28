@@ -2,6 +2,8 @@ package budgets
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"time"
 
 	"ocr-saas-backend/configs"
@@ -19,6 +21,7 @@ func SyncBudgetSpent(tenantID uuid.UUID, category string) error {
 	year := now.Year()
 
 	var totalSpent int64
+	// COALESCE digunakan agar jika tidak ada data, return 0 bukan NULL
 	err := configs.DB.Model(&models.ExpenseReport{}).
 		Where("tenant_id = ? AND status = ? AND EXTRACT(MONTH FROM created_at) = ? AND EXTRACT(YEAR FROM created_at) = ?",
 			tenantID, "APPROVED", month, year).
@@ -29,40 +32,91 @@ func SyncBudgetSpent(tenantID uuid.UUID, category string) error {
 		return err
 	}
 
+	// Update ke table budgets
 	return configs.DB.Model(&models.Budget{}).
 		Where("tenant_id = ? AND category = ? AND month = ? AND year = ?",
 			tenantID, category, month, year).
 		Update("spent_amount", totalSpent).Error
 }
 
-// CalculateBudgetStats mengambil data untuk Dashboard Progress Bar
+// CalculateBudgetStats adalah fungsi yang dipanggil oleh API Controller
+// untuk mengisi data di Dashboard Manager.
 func CalculateBudgetStats(tenantID uuid.UUID, category string) (map[string]interface{}, error) {
-	// Jalankan sinkronisasi otomatis setiap kali data dipanggil
+	// 1. Sinkronisasi data agar angka 'spent_amount' terbaru dari database
 	_ = SyncBudgetSpent(tenantID, category)
 
+	// 2. Ambil data budget dari DB
 	budget, err := budgets.GetBudgetByCategory(configs.DB, tenantID, category)
 	if err != nil {
+		// Handle error jika budget belum di-set
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return map[string]interface{}{
-				"limit_amount": 0, "spent_amount": 0, "remaining": 0, "usage_percent": 0.0, "category": category,
-			}, nil
+			return map[string]interface{}{"limit_amount": 0, "spent_amount": 0}, nil
 		}
 		return nil, err
 	}
 
+	// --- HITUNG BASIC ---
 	remaining := budget.LimitAmount - budget.SpentAmount
 	usagePercent := 0.0
 	if budget.LimitAmount > 0 {
 		usagePercent = (float64(budget.SpentAmount) / float64(budget.LimitAmount)) * 100
 	}
 
+	// --- TENTUKAN WARNA (SAFE/WARNING/CRITICAL) ---
+	statusLevel := "safe"
+	if usagePercent >= 90 {
+		statusLevel = "critical"
+	} else if usagePercent >= 70 {
+		statusLevel = "warning"
+	}
+
+	// ========================================================
+	// DISINI TEMPAT KODE FORECASTING YANG MAS TANYAKAN TADI:
+	// ========================================================
+	now := time.Now()
+	// 1. Ambil jumlah hari dalam bulan ini
+	daysInMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, time.Local).Day()
+	currentDay := now.Day()
+
+	// 2. Gunakan float64 eksplisit agar tidak hasil 0
+	spentFloat := float64(budget.SpentAmount)
+	daysInMonthFloat := float64(daysInMonth)
+	currentDayFloat := float64(currentDay)
+
+	estimatedEndMonth := 0.0
+	avgPerDay := 0.0
+
+	if currentDayFloat > 0 {
+		// Logikanya: Jika 28 hari sudah pakai 99k, maka rata-rata per hari = 99k / 28.
+		// Lalu diproyeksikan ke total hari (misal 31 hari).
+		avgPerDay = spentFloat / currentDayFloat
+		estimatedEndMonth = math.Round(avgPerDay * daysInMonthFloat)
+	}
+
+	// 3. Cek apakah prediksi akhir bulan bakal jebol
+	isOverForecast := false
+	if estimatedEndMonth > float64(budget.LimitAmount) && budget.LimitAmount > 0 {
+		isOverForecast = true
+	}
+
+	// --- DEBUG TERMINAL ---
+	fmt.Printf("\n[DEBUG SEIDO] Spent: %.2f | Day: %.0f/%v | Forecast: %.2f\n",
+		spentFloat, currentDayFloat, daysInMonth, estimatedEndMonth)
+
+	// 4. Kirim hasilnya ke Frontend (React)
 	return map[string]interface{}{
-		"limit_amount":  budget.LimitAmount,
-		"spent_amount":  budget.SpentAmount,
-		"remaining":     remaining,
-		"usage_percent": usagePercent,
-		"category":      budget.Category,
+		"limit_amount":        budget.LimitAmount,
+		"spent_amount":        budget.SpentAmount,
+		"remaining":           remaining,
+		"usage_percent":       math.Round(usagePercent*10) / 10,
+		"category":            budget.Category,
+		"status_level":        statusLevel,
+		"estimated_end_month": estimatedEndMonth, // <--- Ini yang bikin angka ¥0 jadi ¥100rb+
+		"is_over_forecast":    isOverForecast,
+		"current_day":         currentDay,
+		"days_in_month":       daysInMonth,
 	}, nil
+	// ========================================================
 }
 
 // SetBudgetLimit menyimpan limit baru dan langsung melakukan sync
@@ -108,8 +162,9 @@ func GetTenantBudgets(tenantID uuid.UUID, year int) ([]models.Budget, error) {
 	return rows, err
 }
 
-// ConsumeBudgetLogic dipanggil di Report Service saat Approval
+// ConsumeBudgetLogic dipanggil di Report Service saat Approval (Manual Update)
 func ConsumeBudgetLogic(tx *gorm.DB, tenantID uuid.UUID, amount int64) error {
+	// Default kategori 'General'
 	budget, err := budgets.GetBudgetByCategory(tx, tenantID, "General")
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

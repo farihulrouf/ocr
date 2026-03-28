@@ -8,9 +8,11 @@ import (
 	"github.com/google/uuid"
 )
 
+// HandleSetBudget - Endpoint untuk Manager mengatur limit budget
 func HandleSetBudget(c *fiber.Ctx) error {
-	tenantID, _ := c.Locals("tenant_id").(string)
-	userID, _ := c.Locals("user_id").(string)
+	// Ambil metadata dari Middleware Auth
+	tenantIDStr, _ := c.Locals("tenant_id").(string)
+	userIDStr, _ := c.Locals("user_id").(string)
 
 	type Request struct {
 		Category string `json:"category"`
@@ -21,12 +23,19 @@ func HandleSetBudget(c *fiber.Ctx) error {
 
 	var req Request
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"status": "error", "message": "Format input salah"})
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Input format is invalid",
+		})
 	}
 
+	// Parsing UUID dengan aman
+	tID, _ := uuid.Parse(tenantIDStr)
+	uID, _ := uuid.Parse(userIDStr)
+
 	err := budgetService.SetBudgetLimit(
-		uuid.MustParse(tenantID),
-		uuid.MustParse(userID),
+		tID,
+		uID,
 		req.Category,
 		req.Limit,
 		req.Month,
@@ -34,33 +43,63 @@ func HandleSetBudget(c *fiber.Ctx) error {
 	)
 
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "message": "Budget berhasil diperbarui"})
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Budget limit updated successfully",
+	})
 }
 
+// ListBudgets - Mengambil history budget per tahun
 func ListBudgets(c *fiber.Ctx) error {
-	tenantID, _ := c.Locals("tenant_id").(string)
+	tenantIDStr, _ := c.Locals("tenant_id").(string)
 	yearStr := c.Query("year")
 	year, _ := strconv.Atoi(yearStr)
 
-	data, err := budgetService.GetTenantBudgets(uuid.MustParse(tenantID), year)
+	tID, _ := uuid.Parse(tenantIDStr)
+	data, err := budgetService.GetTenantBudgets(tID, year)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "data": data})
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   data,
+	})
 }
 
+// GetBudgetStats - INI ENDPOINT UTAMA DASHBOARD
 func GetBudgetStats(c *fiber.Ctx) error {
-	tenantID, _ := c.Locals("tenant_id").(string)
+	tenantIDStr, _ := c.Locals("tenant_id").(string)
+	// Default kategori ke "General" jika tidak ada di query
 	category := c.Query("category", "General")
 
-	stats, err := budgetService.CalculateBudgetStats(uuid.MustParse(tenantID), category)
+	tID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		return c.Status(400).JSON(fiber.Map{"message": "Invalid Tenant ID"})
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "data": stats})
+	// Panggil Service yang sudah kita pasangi Debug tadi
+	stats, err := budgetService.CalculateBudgetStats(tID, category)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	// Pastikan response data berisi 'stats' secara utuh
+	// Di sinilah data 'estimated_end_month' dikirim ke Frontend
+	return c.Status(200).JSON(fiber.Map{
+		"status": "success",
+		"data":   stats,
+	})
 }
