@@ -295,36 +295,22 @@ func RemoveReceiptFromReport(tenantID, reportID, receiptID uuid.UUID) error {
 }
 
 // GetReadyToPayReports mengambil semua laporan yang sudah di-approve Manager dan siap dibayar
-func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int) ([]models.ExpenseReport, int64, error) {
+// Ubah: Tambahkan parameter 'status'
+func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int, status string) ([]models.ExpenseReport, int64, error) {
 	var reports []models.ExpenseReport
 	var total int64
-
-	// Hitung offset untuk pagination
 	offset := (page - 1) * pageSize
 
-	// 1. Bangun Query
 	query := configs.DB.Model(&models.ExpenseReport{}).
-		// Preload User agar Finance tahu siapa yang mengajukan (Employee)
 		Preload("User").
-		// Preload Approver agar Finance tahu siapa Manager yang menyetujui
 		Preload("Approver").
-		// Kunci berdasarkan TenantID (Isolation) dan Status APPROVED
-		Where("tenant_id = ? AND status = ?", tenantID, "APPROVED")
+		// 💡 GANTI: "APPROVED" jadi variabel status
+		Where("tenant_id = ? AND status = ?", tenantID, status)
 
-	// 2. Hitung Total Data (untuk pagination frontend)
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// 3. Ambil Data dengan Order Terbaru
-	err := query.Order("updated_at desc").
-		Offset(offset).
-		Limit(pageSize).
-		Find(&reports).Error
-
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return reports, total, nil
+	err := query.Order("updated_at desc").Offset(offset).Limit(pageSize).Find(&reports).Error
+	return reports, total, err
 }
