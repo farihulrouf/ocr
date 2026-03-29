@@ -56,6 +56,7 @@ func ConnectDB(cfg *Config) *gorm.DB {
 		&models.ReceiptItem{}, &models.ApprovalLog{}, &models.AuditTrail{},
 		&models.ExportLog{}, &models.TenantUsage{}, &models.OCRJob{},
 		&models.Budget{},
+		&models.Disbursement{}, // <--- WAJIB TAMBAHKAN INI
 	)
 
 	if err != nil {

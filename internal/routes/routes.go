@@ -5,6 +5,7 @@ import (
 	"ocr-saas-backend/internal/handler/budgets"
 	"ocr-saas-backend/internal/handler/categories"
 	"ocr-saas-backend/internal/handler/dashboard"
+	"ocr-saas-backend/internal/handler/disbursement"
 	"ocr-saas-backend/internal/handler/receipts"
 	"ocr-saas-backend/internal/handler/tenants"
 
@@ -166,5 +167,18 @@ func SetupRoutes(app *fiber.App) {
 	//manager.Get("/reports/", handler.GetPendingReports)
 	//managerReport.Post("/:id/approve", handler.ApproveReport)
 	//managerReport.Post("/:id/reject", handler.RejectReport)
+
+	// ==========================================
+	// FINANCE - DISBURSEMENT & PAYMENTS
+	// ==========================================
+	// Menggunakan middleware Protected dan FinanceOnly (atau Role check yang Mas pakai)
+	finance := v0.Group("/finance", middleware.Protected(), middleware.FinanceOnly())
+
+	// Ambil list report yang statusnya 'APPROVED' (Siap dibayar)
+	finance.Get("/reports/ready", reports.GetReadyToPayReports)
+
+	// Eksekusi pembayaran (Update status ke PAID & buat record disbursement)
+	// Handler: disbursement.ExecutePayment
+	finance.Post("/pay", disbursement.ExecutePayment)
 
 }

@@ -233,3 +233,38 @@ func RemoveReceiptFromReport(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": "success", "message": "Receipt removed from report"})
 }
+
+func GetReadyToPayReports(c *fiber.Ctx) error {
+	// 1. Proteksi Tenant: Ambil dari Locals (Middleware Protected)
+	// Kita tidak pakai userID di filter karena Finance harus bisa lihat SEMUA laporan di Tenant tsb.
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	// 2. Ambil Pagination dari Query Param
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
+
+	// 3. Panggil Service
+	data, total, err := reports.GetReadyToPayReports(
+		tenantID,
+		page,
+		pageSize,
+	)
+
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Gagal mengambil data laporan: " + err.Error(),
+		})
+	}
+
+	// 4. Response JSON
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   data,
+		"meta": fiber.Map{
+			"page":      page,
+			"page_size": pageSize,
+			"total":     total,
+		},
+	})
+}

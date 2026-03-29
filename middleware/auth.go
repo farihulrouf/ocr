@@ -48,6 +48,21 @@ func SuperAdminOnly() fiber.Handler {
 	}
 }
 
+func FinanceOnly() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role := c.Locals("role")
+
+		// Jika role adalah ADMIN (Super Admin) atau FINANCE, maka diizinkan
+		if role != "FINANCE" && role != "ADMIN" {
+			return c.Status(403).JSON(fiber.Map{
+				"error": "Forbidden: Finance or Super Admin only",
+			})
+		}
+
+		return c.Next()
+	}
+}
+
 func TenantAdminOnly() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role := c.Locals("role")

@@ -162,7 +162,7 @@ type ExpenseReport struct {
 	Approver     *User      `gorm:"foreignKey:ApprovedByID" json:"approver"`
 	// ------------------------------
 	// Relasi ini penting agar saat preload di Go, datanya muncul
-	Receipts []Receipt `gorm:"foreignKey:ReportID" json:"receipts"`
+	Receipts []Receipt `gorm:"foreignKey:ReportID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"receipts"`
 }
 
 type ApprovalWorkflow struct {
@@ -264,4 +264,26 @@ type Budget struct {
 
 	Month int `json:"month"`
 	Year  int `json:"year"`
+}
+
+// --- GROUP 6: PAYMENTS & SETTLEMENT ---
+
+type Disbursement struct {
+	Base
+	TenantID        uuid.UUID  `gorm:"type:uuid;index" json:"tenant_id"`
+	ExpenseReportID *uuid.UUID `gorm:"type:uuid;index" json:"expense_report_id"`
+	ReceiptID       *uuid.UUID `gorm:"type:uuid;index" json:"receipt_id"`
+
+	// Siapa orang Finance yang melakukan eksekusi
+	PayerID uuid.UUID `gorm:"type:uuid" json:"payer_id"`
+	Payer   User      `gorm:"foreignKey:PayerID" json:"payer"`
+
+	Amount          int64          `json:"amount"`
+	PaymentMethodID *uuid.UUID     `gorm:"type:uuid" json:"payment_method_id"`
+	PaymentMethod   *PaymentMethod `gorm:"foreignKey:PaymentMethodID" json:"payment_method"`
+
+	ReferenceNumber string    `json:"reference_number"` // No referensi bank/transaksi
+	ProofImageURL   string    `json:"proof_image_url"`  // Screenshot bukti transfer
+	PaidAt          time.Time `json:"paid_at"`
+	Notes           string    `json:"notes"`
 }
