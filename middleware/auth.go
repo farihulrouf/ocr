@@ -8,6 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// Protected: Validasi Token Dasar & Ekstrak Claims
 func Protected() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -34,13 +35,46 @@ func Protected() fiber.Handler {
 	}
 }
 
+// FinanceOnly: Role Tertinggi (Bisa akses segalanya termasuk fitur Finance)
+func FinanceOnly() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role := c.Locals("role")
+
+		// Finance adalah power user, Admin biasanya juga diizinkan
+		if role == "FINANCE" || role == "ADMIN" {
+			return c.Next()
+		}
+
+		return c.Status(403).JSON(fiber.Map{
+			"error": "Forbidden: Finance access required",
+		})
+	}
+}
+
+// TenantAdminOnly: Untuk Manager, tapi Finance & Admin juga BOLEH tembus
+func TenantAdminOnly() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role := c.Locals("role")
+
+		// Karena Finance paling tinggi, mereka harus bisa akses menu Manager
+		if role == "MANAGER" || role == "FINANCE" || role == "ADMIN" {
+			return c.Next()
+		}
+
+		return c.Status(403).JSON(fiber.Map{
+			"error": "Forbidden: Manager or Higher role required",
+		})
+	}
+}
+
+// SuperAdminOnly: Khusus untuk maintenance sistem (System Level)
 func SuperAdminOnly() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role := c.Locals("role")
 
 		if role != "ADMIN" {
 			return c.Status(403).JSON(fiber.Map{
-				"error": "Forbidden: Super Admin only",
+				"error": "Forbidden: System Admin only",
 			})
 		}
 
@@ -48,39 +82,16 @@ func SuperAdminOnly() fiber.Handler {
 	}
 }
 
-func FinanceOnly() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		role := c.Locals("role")
-
-		// Jika role adalah ADMIN (Super Admin) atau FINANCE, maka diizinkan
-		if role != "FINANCE" && role != "ADMIN" {
-			return c.Status(403).JSON(fiber.Map{
-				"error": "Forbidden: Finance or Super Admin only",
-			})
-		}
-
-		return c.Next()
-	}
-}
-
-func TenantAdminOnly() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		role := c.Locals("role")
-
-		if role != "MANAGER" {
-			return c.Status(403).JSON(fiber.Map{
-				"error": "Forbidden – Tenant Manager only",
-			})
-		}
-		return c.Next()
-	}
-}
-
+// EmployeeOnly: Role paling dasar (Hanya bisa akses data milik sendiri)
 func EmployeeOnly() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		if c.Locals("role") != "EMPLOYEE" {
-			return c.Status(403).JSON(fiber.Map{"error": "Employees only"})
+		role := c.Locals("role")
+
+		// Employee akses terbatas, tapi Finance/Manager biasanya boleh intip buat monitoring
+		if role == "EMPLOYEE" || role == "MANAGER" || role == "FINANCE" || role == "ADMIN" {
+			return c.Next()
 		}
-		return c.Next()
+
+		return c.Status(403).JSON(fiber.Map{"error": "Access denied"})
 	}
 }
