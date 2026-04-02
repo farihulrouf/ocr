@@ -2,8 +2,10 @@ package routes
 
 import (
 	"ocr-saas-backend/internal/handler"
+	"ocr-saas-backend/internal/handler/budgets"
 	"ocr-saas-backend/internal/handler/categories"
 	"ocr-saas-backend/internal/handler/dashboard"
+	"ocr-saas-backend/internal/handler/disbursement"
 	"ocr-saas-backend/internal/handler/receipts"
 	"ocr-saas-backend/internal/handler/tenants"
 
@@ -102,7 +104,9 @@ func SetupRoutes(app *fiber.App) {
 	emprole.Delete("/receipt/:id", receipts.DeleteReceipt)
 	emprole.Post("/receipt/:id/items", receipts.AddReceiptItem)
 	emprole.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
-
+	// --- TAMBAHKAN BARIS INI ---
+	// Endpoint: GET /v0/api/emp/receipt/:id/status
+	emprole.Get("/receipt/:id/status", receipts.GetReceiptStatusHandler)
 	//api.Post("/ocr/receipt", handler.UploadReceipt)
 
 	// =============================
@@ -143,6 +147,12 @@ func SetupRoutes(app *fiber.App) {
 	manager.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", receipts.DeleteReceiptItem)
 	manager.Get("/dashboard", dashboard.GetManagerDashboard)
+
+	// --- BUDGET MANAGEMENT (FITUR BARU) ---
+	manager.Get("/budget", budgets.ListBudgets)          // List budget tenant
+	manager.Post("/budget", budgets.HandleSetBudget)     // Set/Update budget
+	manager.Get("/budget/stats", budgets.GetBudgetStats) // Data grafik budget vs spent
+
 	// =============================
 	// MANAGER - REPORT APPROVAL
 	// =============================
@@ -157,5 +167,18 @@ func SetupRoutes(app *fiber.App) {
 	//manager.Get("/reports/", handler.GetPendingReports)
 	//managerReport.Post("/:id/approve", handler.ApproveReport)
 	//managerReport.Post("/:id/reject", handler.RejectReport)
+
+	// ==========================================
+	// FINANCE - DISBURSEMENT & PAYMENTS
+	// ==========================================
+	// Menggunakan middleware Protected dan FinanceOnly (atau Role check yang Mas pakai)
+	finance := v0.Group("/finance", middleware.Protected(), middleware.FinanceOnly())
+
+	// Ambil list report yang statusnya 'APPROVED' (Siap dibayar)
+	finance.Get("/reports/ready", reports.GetReadyToPayReports)
+
+	// Eksekusi pembayaran (Update status ke PAID & buat record disbursement)
+	// Handler: disbursement.ExecutePayment
+	finance.Post("/pay", disbursement.ExecutePayment)
 
 }

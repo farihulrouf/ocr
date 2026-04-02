@@ -35,6 +35,8 @@ func ListMyReports(
 
 	err := db.
 		Preload("Receipts").
+		Preload("User").     // Load data pengaju
+		Preload("Approver"). // Load data manajer (penting!)
 		Order("created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
@@ -51,6 +53,8 @@ func GetByID(
 
 	err := configs.DB.
 		Preload("Receipts").
+		Preload("User").     // ✅ TAMBAHKAN INI (Untuk data pengaju)
+		Preload("Approver"). // ✅ TAMBAHKAN INI (Untuk data manajer/approver)
 		Where("tenant_id = ? AND id = ?", tenantID, id).
 		First(&report).Error
 
@@ -72,11 +76,15 @@ func Update(report *models.ExpenseReport) error {
 func UpdateReportStatus(
 	tenantID, reportID uuid.UUID,
 	status string,
+	managerID *uuid.UUID, // TAMBAHKAN PARAMETER KE-4 DI SINI
 ) error {
 	return configs.DB.
 		Model(&models.ExpenseReport{}).
 		Where("id = ? AND tenant_id = ?", reportID, tenantID).
-		Update("status", status).
+		Updates(map[string]interface{}{
+			"status":         status,
+			"approved_by_id": managerID, // MENGISI KOLOM PENANGGUNG JAWAB
+		}).
 		Error
 }
 

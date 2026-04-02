@@ -157,8 +157,12 @@ type ExpenseReport struct {
 	TotalAmount int64  `gorm:"default:0" json:"total_amount"`
 	Status      string `gorm:"type:varchar(20);default:'DRAFT'" json:"status"`
 
+	// --- TAMBAHKAN DUA FIELD INI ---
+	ApprovedByID *uuid.UUID `gorm:"type:uuid" json:"approved_by_id"`
+	Approver     *User      `gorm:"foreignKey:ApprovedByID" json:"approver"`
+	// ------------------------------
 	// Relasi ini penting agar saat preload di Go, datanya muncul
-	Receipts []Receipt `gorm:"foreignKey:ReportID" json:"receipts"`
+	Receipts []Receipt `gorm:"foreignKey:ReportID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"receipts"`
 }
 
 type ApprovalWorkflow struct {
@@ -241,4 +245,45 @@ type OCRJob struct {
 
 	StartedAt  *time.Time `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at"`
+}
+
+type Budget struct {
+	Base
+	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
+
+	// Siapa Manajer yang bertanggung jawab/membuat budget ini
+	CreatedByID uuid.UUID `gorm:"type:uuid;not null" json:"created_by_id"`
+	Creator     User      `gorm:"foreignKey:CreatedByID" json:"creator"`
+
+	DepartmentID *uuid.UUID  `gorm:"type:uuid;index" json:"department_id"`
+	Department   *Department `gorm:"foreignKey:DepartmentID" json:"department"`
+
+	Category    string `gorm:"type:varchar(100);index" json:"category"`
+	LimitAmount int64  `gorm:"not null" json:"limit_amount"`
+	SpentAmount int64  `gorm:"default:0" json:"spent_amount"`
+
+	Month int `json:"month"`
+	Year  int `json:"year"`
+}
+
+// --- GROUP 6: PAYMENTS & SETTLEMENT ---
+
+type Disbursement struct {
+	Base
+	TenantID        uuid.UUID  `gorm:"type:uuid;index" json:"tenant_id"`
+	ExpenseReportID *uuid.UUID `gorm:"type:uuid;index" json:"expense_report_id"`
+	ReceiptID       *uuid.UUID `gorm:"type:uuid;index" json:"receipt_id"`
+
+	// Siapa orang Finance yang melakukan eksekusi
+	PayerID uuid.UUID `gorm:"type:uuid" json:"payer_id"`
+	Payer   User      `gorm:"foreignKey:PayerID" json:"payer"`
+
+	Amount          int64          `json:"amount"`
+	PaymentMethodID *uuid.UUID     `gorm:"type:uuid" json:"payment_method_id"`
+	PaymentMethod   *PaymentMethod `gorm:"foreignKey:PaymentMethodID" json:"payment_method"`
+
+	ReferenceNumber string    `json:"reference_number"` // No referensi bank/transaksi
+	ProofImageURL   string    `json:"proof_image_url"`  // Screenshot bukti transfer
+	PaidAt          time.Time `json:"paid_at"`
+	Notes           string    `json:"notes"`
 }

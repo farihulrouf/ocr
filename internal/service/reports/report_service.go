@@ -6,6 +6,7 @@ import (
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/models"
 	repo "ocr-saas-backend/internal/repository/reports"
+	"ocr-saas-backend/internal/service/budgets"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -130,27 +131,44 @@ func GetPendingReports(
 	return result, total, nil
 }
 
-func ApproveReport(
-	tenantID, reportID uuid.UUID,
-) error {
+func ApproveReport(tenantID, reportID, managerID uuid.UUID) error {
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
+		// 0. Ambil data laporan dulu untuk tahu nominal pengeluarannya
+		var report models.ExpenseReport
+		if err := tx.Where("id = ? AND tenant_id = ?", reportID, tenantID).First(&report).Error; err != nil {
+			return err
+		}
 
-	report, err := repo.GetByID(tenantID, reportID)
-	if err != nil {
-		return err
-	}
+		// 1. POTONG BUDGET (Logic Baru)
+		// Gunakan fungsi ConsumeBudgetLogic agar spent_amount di tabel budgets bertambah
+		if err := budgets.ConsumeBudgetLogic(tx, tenantID, report.TotalAmount); err != nil {
+			return err // Jika budget tidak cukup, transaksi gagal (Rollback)
+		}
 
-	if report.Status != "SUBMITTED" {
-		return errors.New("report is not submitted")
-	}
-	return repo.UpdateReportStatus(
-		tenantID,
-		reportID,
-		"APPROVED",
-	)
+		// 2. Update status laporan dan siapa yang approve
+		err := tx.Model(&models.ExpenseReport{}).
+			Where("id = ? AND tenant_id = ?", reportID, tenantID).
+			Updates(map[string]interface{}{
+				"status":         "APPROVED",
+				"approved_by_id": managerID,
+			}).Error
+		if err != nil {
+			return err
+		}
+
+		// 3. Catat ke ApprovalLog (Sejarah)
+		approvalLog := models.ApprovalLog{
+			ExpenseReportID: &reportID,
+			UserID:          managerID,
+			Action:          "APPROVE",
+			Comment:         "Laporan disetujui oleh Manajer",
+		}
+		return tx.Create(&approvalLog).Error
+	})
 }
 
 func RejectReport(
-	tenantID, reportID uuid.UUID,
+	tenantID, reportID, managerID uuid.UUID, // <-- Tambah managerID di sini
 ) error {
 
 	report, err := repo.GetByID(tenantID, reportID)
@@ -159,12 +177,15 @@ func RejectReport(
 	}
 
 	if report.Status != "SUBMITTED" {
-		return errors.New("report is not submitted")
+		return errors.New("laporan belum di-submit, tidak bisa ditolak")
 	}
+
+	// Gunakan fungsi repo yang bisa mengupdate status sekaligus mencatat pelakunya
 	return repo.UpdateReportStatus(
 		tenantID,
 		reportID,
 		"REJECTED",
+		&managerID, // <-- Kirim pointer managerID ke repo
 	)
 }
 
@@ -271,4 +292,25 @@ func RemoveReceiptFromReport(tenantID, reportID, receiptID uuid.UUID) error {
 		// 4. Update total_amount di tabel expense_reports
 		return tx.Model(&report).Update("total_amount", newTotal).Error
 	})
+}
+
+// GetReadyToPayReports mengambil semua laporan yang sudah di-approve Manager dan siap dibayar
+// Ubah: Tambahkan parameter 'status'
+func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int, status string) ([]models.ExpenseReport, int64, error) {
+	var reports []models.ExpenseReport
+	var total int64
+	offset := (page - 1) * pageSize
+
+	query := configs.DB.Model(&models.ExpenseReport{}).
+		Preload("User").
+		Preload("Approver").
+		// 💡 GANTI: "APPROVED" jadi variabel status
+		Where("tenant_id = ? AND status = ?", tenantID, status)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.Order("updated_at desc").Offset(offset).Limit(pageSize).Find(&reports).Error
+	return reports, total, err
 }

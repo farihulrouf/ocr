@@ -8,7 +8,8 @@ type ExpenseReportResponse struct {
 	TotalAmount int64             `json:"total_amount"`
 	Status      string            `json:"status"`
 	CreatedAt   time.Time         `json:"created_at"`
-	User        UserResponse      `json:"user"` // ⬅️ TAMBAH
+	User        UserResponse      `json:"user"`     // ⬅️ TAMBAH
+	Approver    UserResponse      `json:"approver"` // Data manajer yang approve/reject
 	Receipts    []ReceiptResponse `json:"receipts"`
 }
 
