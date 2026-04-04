@@ -37,7 +37,7 @@ func CreateVendor(
 ) error {
 
 	vendor := &models.VendorMaster{
-		TenantID:  tenantID,
+		TenantID:  &tenantID, // <--- TAMBAHKAN TANDA & DI SINI
 		Name:      name,
 		TaxNumber: TaxNumber,
 	}

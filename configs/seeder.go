@@ -10,6 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// Helper function untuk mengubah UUID menjadi *uuid.UUID (Pointer)
+// Karena field TenantID di VendorMaster sekarang bisa NULL (Pointer)
+func uuidPtr(id uuid.UUID) *uuid.UUID {
+	return &id
+}
+
 func SeedDatabase(db *gorm.DB) {
 	var count int64
 	db.Model(&models.Tenant{}).Count(&count)
@@ -90,7 +96,12 @@ func SeedDatabase(db *gorm.DB) {
 	db.Create(&models.PaymentMethod{TenantID: tenant1.ID, Name: "Visa Corporate Card"})
 	db.Create(&models.PaymentMethod{TenantID: tenant1.ID, Name: "Cash"})
 
-	vendor1 := models.VendorMaster{TenantID: tenant1.ID, Name: "Lawson Shibuya", TaxNumber: "T1234567890123"}
+	// FIX: Pakai uuidPtr
+	vendor1 := models.VendorMaster{
+		TenantID:  uuidPtr(tenant1.ID),
+		Name:      "Lawson Shibuya",
+		TaxNumber: "T1234567890123",
+	}
 	db.Create(&vendor1)
 
 	wf1 := models.ApprovalWorkflow{TenantID: tenant1.ID, Name: "Standard Workflow", IsActive: true}
@@ -106,7 +117,8 @@ func SeedDatabase(db *gorm.DB) {
 
 	now := time.Now()
 	rc1 := models.Receipt{
-		TenantID: tenant1.ID, UserID: staff1.ID,
+		TenantID:          tenant1.ID,
+		UserID:            staff1.ID,
 		ReportID:          &rep1.ID,
 		AccountCategoryID: &cat1A.ID,
 		StoreName:         "ファミリーマート",
@@ -125,30 +137,6 @@ func SeedDatabase(db *gorm.DB) {
 		Amount:      1364,
 		TaxAmount:   136,
 		TaxRate:     10,
-	})
-
-	db.Create(&models.ApprovalLog{
-		ExpenseReportID: &rep1.ID,
-		UserID:          staff1.ID,
-		Action:          "SUBMIT",
-		Comment:         "お願いします。",
-	})
-
-	db.Create(&models.AuditTrail{
-		TenantID:  tenant1.ID,
-		UserID:    staff1.ID,
-		Action:    "CREATE_REPORT",
-		TableName: "expense_reports",
-		RecordID:  rep1.ID.String(),
-		OldData:   "{}",
-		NewData:   "{\"title\":\"出張費用精算\"}",
-	})
-
-	db.Create(&models.ExportLog{
-		TenantID: tenant1.ID,
-		UserID:   admin1.ID,
-		Format:   "CSV",
-		FileURL:  "https://storage.googleapis.com/demo/t1_export.csv",
 	})
 
 	// ============================================================
@@ -189,80 +177,16 @@ func SeedDatabase(db *gorm.DB) {
 	db.Create(&manager2)
 	db.Create(&staff2)
 
-	db.Create(&models.UserApprover{EmployeeID: staff2.ID, ApproverID: manager2.ID})
-
 	cat2A := models.AccountCategory{TenantID: tenant2.ID, Code: "201", Name: "仕入れ費用"}
-	cat2B := models.AccountCategory{TenantID: tenant2.ID, Code: "202", Name: "調理用品費"}
 	db.Create(&cat2A)
-	db.Create(&cat2B)
 
-	tax2A := models.TaxRate{TenantID: tenant2.ID, Name: "10%", Percentage: 10}
-	tax2B := models.TaxRate{TenantID: tenant2.ID, Name: "軽減8%", Percentage: 8}
-	db.Create(&tax2A)
-	db.Create(&tax2B)
-
-	db.Create(&models.PaymentMethod{TenantID: tenant2.ID, Name: "Bank Transfer"})
-	db.Create(&models.PaymentMethod{TenantID: tenant2.ID, Name: "Cash"})
-
-	vendor2 := models.VendorMaster{TenantID: tenant2.ID, Name: "Aeon Market", TaxNumber: "T9876543210001"}
+	// FIX: Pakai uuidPtr
+	vendor2 := models.VendorMaster{
+		TenantID:  uuidPtr(tenant2.ID),
+		Name:      "Aeon Market",
+		TaxNumber: "T9876543210001",
+	}
 	db.Create(&vendor2)
-
-	wf2 := models.ApprovalWorkflow{TenantID: tenant2.ID, Name: "Food Approval Flow", IsActive: true}
-	db.Create(&wf2)
-	db.Create(&models.ApprovalStep{WorkflowID: wf2.ID, StepOrder: 1, ApproverID: manager2.ID})
-
-	rep2 := models.ExpenseReport{
-		TenantID: tenant2.ID, UserID: staff2.ID,
-		Title:       "食材仕入れ精算",
-		TotalAmount: 9000, Status: "PENDING",
-	}
-	db.Create(&rep2)
-
-	rc2 := models.Receipt{
-		TenantID: tenant2.ID, UserID: staff2.ID,
-		ReportID:          &rep2.ID,
-		AccountCategoryID: &cat2A.ID,
-		StoreName:         "イオンマーケット",
-		TransactionDate:   &now,
-		TotalAmount:       8700,
-		TaxRegistrationID: "T7012002045678",
-		IsQualified:       true,
-		Status:            "PENDING",
-		ImageURL:          "https://storage.googleapis.com/demo/r2.jpg",
-	}
-	db.Create(&rc2)
-
-	db.Create(&models.ReceiptItem{
-		ReceiptID:   rc2.ID,
-		Description: "野菜・肉購入",
-		Amount:      8000,
-		TaxAmount:   700,
-		TaxRate:     10,
-	})
-
-	db.Create(&models.ApprovalLog{
-		ExpenseReportID: &rep2.ID,
-		UserID:          staff2.ID,
-		Action:          "SUBMIT",
-		Comment:         "本日の仕入れです。",
-	})
-
-	db.Create(&models.AuditTrail{
-		TenantID:  tenant2.ID,
-		UserID:    staff2.ID,
-		Action:    "CREATE_REPORT",
-		TableName: "expense_reports",
-		RecordID:  rep2.ID.String(),
-		OldData:   "{}",
-		NewData:   "{\"title\":\"仕入れ\"}",
-	})
-
-	db.Create(&models.ExportLog{
-		TenantID: tenant2.ID,
-		UserID:   admin2.ID,
-		Format:   "CSV",
-		FileURL:  "https://storage.googleapis.com/demo/t2_export.csv",
-	})
 
 	// ============================================================
 	// ================= TENANT 3: KYOTO ENGINEERING ==============
@@ -277,161 +201,83 @@ func SeedDatabase(db *gorm.DB) {
 	}
 	db.Create(&tenant3)
 
-	db.Create(&models.CompanySetting{
-		TenantID: tenant3.ID, Currency: "JPY", DateFormat: "DD-MM-YYYY", AutoOCR: true,
-	})
-
 	dept3A := models.Department{TenantID: tenant3.ID, Name: "設計部", Code: "DSN01"}
-	dept3B := models.Department{TenantID: tenant3.ID, Name: "管理部", Code: "ADM01"}
 	db.Create(&dept3A)
-	db.Create(&dept3B)
 
-	admin3 := models.User{
-		TenantID: tenant3.ID, DepartmentID: &dept3B.ID,
-		Name: "高橋 良介", Email: "admin@kyoto-eng.jp", Role: "ADMIN", PasswordHash: pass,
-	}
-	manager3 := models.User{
-		TenantID: tenant3.ID, DepartmentID: &dept3A.ID,
-		Name: "藤田 直樹", Email: "manager@kyoto-eng.jp", Role: "MANAGER", PasswordHash: pass,
-	}
 	staff3 := models.User{
 		TenantID: tenant3.ID, DepartmentID: &dept3A.ID,
 		Name: "松本 明", Email: "staff@kyoto-eng.jp", Role: "EMPLOYEE", PasswordHash: pass,
 	}
-	db.Create(&admin3)
-	db.Create(&manager3)
 	db.Create(&staff3)
 
-	db.Create(&models.UserApprover{EmployeeID: staff3.ID, ApproverID: manager3.ID})
-
-	cat3A := models.AccountCategory{TenantID: tenant3.ID, Code: "301", Name: "研究開発費"}
-	cat3B := models.AccountCategory{TenantID: tenant3.ID, Code: "302", Name: "備品費用"}
-	db.Create(&cat3A)
-	db.Create(&cat3B)
-
-	tax3A := models.TaxRate{TenantID: tenant3.ID, Name: "10%", Percentage: 10}
-	tax3B := models.TaxRate{TenantID: tenant3.ID, Name: "非課税", Percentage: 0}
-	db.Create(&tax3A)
-	db.Create(&tax3B)
-
-	db.Create(&models.PaymentMethod{TenantID: tenant3.ID, Name: "Cash"})
-	db.Create(&models.PaymentMethod{TenantID: tenant3.ID, Name: "Corporate Card"})
-
-	vendor3 := models.VendorMaster{TenantID: tenant3.ID, Name: "Yodobashi Kyoto", TaxNumber: "T5555555554321"}
+	// FIX: Pakai uuidPtr
+	vendor3 := models.VendorMaster{
+		TenantID:  uuidPtr(tenant3.ID),
+		Name:      "Yodobashi Kyoto",
+		TaxNumber: "T5555555554321",
+	}
 	db.Create(&vendor3)
 
-	wf3 := models.ApprovalWorkflow{TenantID: tenant3.ID, Name: "Engineering Flow", IsActive: true}
-	db.Create(&wf3)
-	db.Create(&models.ApprovalStep{WorkflowID: wf3.ID, StepOrder: 1, ApproverID: manager3.ID})
+	// ============================================================
+	// =================== GLOBAL VENDOR SEEDING ==================
+	// ============================================================
+	// Vendor yang tidak punya TenantID (NULL) agar bisa dipakai semua
+	fmt.Println("🌍 Seeding Global Vendors (Indomaret, Starbucks, etc)...")
 
-	rep3 := models.ExpenseReport{
-		TenantID: tenant3.ID, UserID: staff3.ID,
-		Title:       "機材購入精算",
-		TotalAmount: 12000, Status: "PENDING",
+	globalVendors := []models.VendorMaster{
+		{
+			Name:        "PT Sari Coffee Indonesia",
+			DisplayName: "Starbucks",
+			Aliases:     "SBUX, Starbucks Coffee, Starbucks Indonesia",
+			TaxNumber:   "01.328.014.1-054.000",
+			Category:    "Food & Beverage",
+			CountryCode: "ID",
+			IsGlobal:    true,
+		},
+		{
+			Name:        "PT Indomarco Prismatama",
+			DisplayName: "Indomaret",
+			Aliases:     "Indomaret, IDM, Indomarco",
+			TaxNumber:   "01.337.994.1-092.000",
+			Category:    "Groceries",
+			CountryCode: "ID",
+			IsGlobal:    true,
+		},
+		{
+			Name:        "PT Sumber Alfaria Trijaya Tbk",
+			DisplayName: "Alfamart",
+			Aliases:     "Alfamart, ALFA, SAT",
+			TaxNumber:   "01.334.885.1-054.000",
+			Category:    "Groceries",
+			CountryCode: "ID",
+			IsGlobal:    true,
+		},
+		{
+			Name:        "PT Pertamina Patra Niaga",
+			DisplayName: "Pertamina",
+			Aliases:     "Pertamina, SPBU, Pertamax",
+			TaxNumber:   "01.000.222.3-000.000",
+			Category:    "Fuel",
+			CountryCode: "ID",
+			IsGlobal:    true,
+		},
 	}
-	db.Create(&rep3)
 
-	rc3 := models.Receipt{
-		TenantID: tenant3.ID, UserID: staff3.ID,
-		ReportID: &rep3.ID, AccountCategoryID: &cat3B.ID,
-		StoreName:         "ヨドバシカメラ 京都",
-		TransactionDate:   &now,
-		TotalAmount:       11800,
-		TaxRegistrationID: "T3015003098765",
-		IsQualified:       true,
-		Status:            "PENDING",
-		ImageURL:          "https://storage.googleapis.com/demo/r3.jpg",
+	for _, gv := range globalVendors {
+		db.Create(&gv)
 	}
-	db.Create(&rc3)
-
-	db.Create(&models.ReceiptItem{
-		ReceiptID:   rc3.ID,
-		Description: "精密ドライバーセット",
-		Amount:      11800,
-		TaxAmount:   0,
-		TaxRate:     0,
-	})
-
-	db.Create(&models.ApprovalLog{
-		ExpenseReportID: &rep3.ID,
-		UserID:          staff3.ID,
-		Action:          "SUBMIT",
-		Comment:         "備品です。",
-	})
-
-	db.Create(&models.AuditTrail{
-		TenantID:  tenant3.ID,
-		UserID:    staff3.ID,
-		Action:    "CREATE_REPORT",
-		TableName: "expense_reports",
-		RecordID:  rep3.ID.String(),
-		OldData:   "{}",
-		NewData:   "{\"title\":\"備品購入\"}",
-	})
-
-	db.Create(&models.ExportLog{
-		TenantID: tenant3.ID,
-		UserID:   admin3.ID,
-		Format:   "CSV",
-		FileURL:  "https://storage.googleapis.com/demo/t3_export.csv",
-	})
 
 	// ============================================================
-	// ================= TAMBAHAN GLOBAL / MISSING =================
+	// ===================== TAMBAHAN LOGS ========================
 	// ============================================================
 
-	// TENANT USAGE (limit OCR per tenant)
 	db.Create(&models.TenantUsage{
 		TenantID: tenant1.ID,
 		OCRLimit: 5000,
 		OCRUsed:  120,
 	})
 
-	db.Create(&models.TenantUsage{
-		TenantID: tenant2.ID,
-		OCRLimit: 5000,
-		OCRUsed:  80,
-	})
-
-	db.Create(&models.TenantUsage{
-		TenantID: tenant3.ID,
-		OCRLimit: 5000,
-		OCRUsed:  200,
-	})
-
-	// OCR JOB (simulate background processing)
-	start := time.Now()
-	finish := start.Add(2 * time.Second)
-
-	db.Create(&models.OCRJob{
-		TenantID:   tenant1.ID,
-		ReceiptID:  rc1.ID,
-		Status:     "SUCCESS",
-		Engine:     "Google Vision API",
-		StartedAt:  &start,
-		FinishedAt: &finish,
-	})
-
-	db.Create(&models.OCRJob{
-		TenantID:   tenant2.ID,
-		ReceiptID:  rc2.ID,
-		Status:     "SUCCESS",
-		Engine:     "AWS Textract",
-		StartedAt:  &start,
-		FinishedAt: &finish,
-	})
-
-	db.Create(&models.OCRJob{
-		TenantID:     tenant3.ID,
-		ReceiptID:    rc3.ID,
-		Status:       "FAILED",
-		Engine:       "Tesseract",
-		ErrorMessage: "Low image quality",
-		StartedAt:    &start,
-		FinishedAt:   &finish,
-	})
-
-	// REFRESH TOKEN (simulate login session)
+	// Refresh Tokens
 	db.Create(&models.RefreshToken{
 		ID:        uuid.New(),
 		UserID:    admin1.ID,
@@ -439,19 +285,5 @@ func SeedDatabase(db *gorm.DB) {
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	})
 
-	db.Create(&models.RefreshToken{
-		ID:        uuid.New(),
-		UserID:    admin2.ID,
-		Token:     "refresh_token_admin_2",
-		ExpiresAt: time.Now().Add(24 * time.Hour),
-	})
-
-	db.Create(&models.RefreshToken{
-		ID:        uuid.New(),
-		UserID:    admin3.ID,
-		Token:     "refresh_token_admin_3",
-		ExpiresAt: time.Now().Add(24 * time.Hour),
-	})
-
-	fmt.Println("🎉 Selesai! 3 Tenant & 18 Tabel berhasil di-seed.")
+	fmt.Println("🎉 Selesai! 3 Tenant & Global Vendors berhasil di-seed.")
 }

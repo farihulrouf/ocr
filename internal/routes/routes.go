@@ -177,6 +177,7 @@ func SetupRoutes(app *fiber.App) {
 	// Ambil list report yang statusnya 'APPROVED' (Siap dibayar)
 	finance.Get("/reports/ready", reports.GetReadyToPayReports)
 	finance.Get("/reports/:id", reports.GetMyReportDetail)
+	finance.Get("/dashboard", dashboard.GetAdminFinanceDashboard)
 	// Eksekusi pembayaran (Update status ke PAID & buat record disbursement)
 	// Handler: disbursement.ExecutePayment
 	finance.Post("/pay", disbursement.ExecutePayment)
