@@ -147,7 +147,7 @@ func SetupRoutes(app *fiber.App) {
 	manager.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", receipts.DeleteReceiptItem)
 	manager.Get("/dashboard", dashboard.GetManagerDashboard)
-
+	//manager.Get("/reports/:id", reports.GetMyReportDetail)
 	// --- BUDGET MANAGEMENT (FITUR BARU) ---
 	manager.Get("/budget", budgets.ListBudgets)          // List budget tenant
 	manager.Post("/budget", budgets.HandleSetBudget)     // Set/Update budget
@@ -176,7 +176,7 @@ func SetupRoutes(app *fiber.App) {
 
 	// Ambil list report yang statusnya 'APPROVED' (Siap dibayar)
 	finance.Get("/reports/ready", reports.GetReadyToPayReports)
-
+	finance.Get("/reports/:id", reports.GetMyReportDetail)
 	// Eksekusi pembayaran (Update status ke PAID & buat record disbursement)
 	// Handler: disbursement.ExecutePayment
 	finance.Post("/pay", disbursement.ExecutePayment)

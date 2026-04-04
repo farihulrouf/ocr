@@ -9,17 +9,21 @@ import (
 )
 
 func GetMyReports(c *fiber.Ctx) error {
+	// 1. Ambil data dari Middleware Protected
 	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
 	userID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string) // <--- Ambil Role dari JWT
 
-	// ✅ Ambil status dari query param: /api/emp/reports?status=DRAFT
+	// 2. Ambil Query Params
 	status := c.Query("status", "")
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
+	// 3. Panggil Service dengan menyertakan ROLE (6 Argumen)
 	data, total, err := reports.GetMyReports(
-		tenantID, userID, page, pageSize, status,
+		tenantID, userID, page, pageSize, status, role,
 	)
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status":  "error",
@@ -34,7 +38,6 @@ func GetMyReports(c *fiber.Ctx) error {
 			"page":      page,
 			"page_size": pageSize,
 			"total":     total,
-			"status":    status, // Kembalikan status di meta untuk tracing
 		},
 	})
 }
@@ -173,11 +176,13 @@ func RejectReport(c *fiber.Ctx) error {
 func GetMyReportDetail(c *fiber.Ctx) error {
 	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
 	userID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string) // Ambil role dari middleware
 	reportID := uuid.MustParse(c.Params("id"))
 
 	data, err := reports.GetMyReportDetail(
-		tenantID, userID, reportID,
+		tenantID, userID, reportID, role,
 	)
+
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"status":  "error",
