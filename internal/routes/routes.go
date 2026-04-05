@@ -82,11 +82,6 @@ func SetupRoutes(app *fiber.App) {
 	system.Put("/payments/:id", payments.UpdatePayments)
 	system.Delete("/payments/:id", payments.DeletePayments)
 
-	system.Get("/vendors", vendors.GetAllVendors)
-	system.Post("/vendors", vendors.CreateVendor)
-	system.Put("/vendors/:id", vendors.UpdateVendor)
-	system.Delete("/vendors/:id", vendors.DeleteVendor)
-
 	//finance := api.Group("/finance", middleware.Auth())
 
 	//finance.Get("/categories", handler.ListCategories)
@@ -181,5 +176,10 @@ func SetupRoutes(app *fiber.App) {
 	// Eksekusi pembayaran (Update status ke PAID & buat record disbursement)
 	// Handler: disbursement.ExecutePayment
 	finance.Post("/pay", disbursement.ExecutePayment)
+
+	finance.Get("/vendors", vendors.GetAllVendorsHandler)
+	finance.Post("/vendors", vendors.CreateVendor)
+	finance.Put("/vendors/:id", vendors.UpdateVendor)
+	finance.Delete("/vendors/:id", vendors.DeleteVendor)
 
 }
