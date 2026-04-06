@@ -139,17 +139,38 @@ func UpdateVendor(c *fiber.Ctx) error {
 }
 
 func DeleteVendor(c *fiber.Ctx) error {
-	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
-	id := uuid.MustParse(c.Params("id"))
-
-	if err := vendors.DeleteVendor(
-		tenantID,
-		id,
-	); err != nil {
-		return c.Status(500).JSON(fiber.Map{"message": err.Error()})
+	// 1. Ambil TenantID dari middleware Auth
+	rawTenantID := c.Locals("tenant_id")
+	if rawTenantID == nil {
+		return c.Status(401).JSON(fiber.Map{"message": "unauthorized"})
 	}
 
+	tenantID := uuid.MustParse(rawTenantID.(string))
+
+	// 2. Ambil VendorID dari Parameter URL
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"message": "format ID vendor tidak valid"})
+	}
+
+	// 3. Panggil Service
+	if err := vendors.DeleteVendor(tenantID, id); err != nil {
+		// Jika error karena validasi bisnis (usage > 0), kirim 400 Bad Request
+		// Jika error karena security (not found), kirim 404
+		status := 400
+		if err.Error() == "vendor tidak ditemukan atau anda tidak memiliki akses" {
+			status = 404
+		}
+
+		return c.Status(status).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	// 4. Sukses
 	return c.JSON(fiber.Map{
-		"status": "success",
+		"status":  "success",
+		"message": "Vendor berhasil dihapus dari sistem",
 	})
 }
