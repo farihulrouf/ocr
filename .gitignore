@@ -1,7 +1,9 @@
-# ---- Go Build ----
+# ---- Go Build & Binaries ----
 bin/
 build/
 dist/
+main
+ocr-saas-backend
 *.exe
 *.exe~
 *.dll
@@ -11,42 +13,56 @@ dist/
 *.out
 
 # ---- Go Modules ----
-#go.sum
+#go.sum (biasanya tetap di-push untuk keamanan versi, tapi kalau mau di-ignore hapus pagarnya)
 vendor/
+
+# ---- Docker Data (PENTING: Biar isi DB lokal gak ke-push) ----
+pgdata/
+redisdata/
+localstack_data/
+.docker-data/
+
+# ---- Database Backups & SQL ----
+*.sql
+*.sql.gz
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- Env / Credentials (RAHASIA) ----
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+cert.cap
+
+# ---- Uploaded Files & Storage ----
+uploads/
+temp_uploads/
+storage/
+media/
+*.jpg
+*.jpeg
+*.png
+*.pdf
 
 # ---- Temporary files ----
 *.log
 *.tmp
 *.temp
 *.cache
+fiber.pid
 
-# ---- OS / Editor ----
+# ---- OS / Editor / IDE ----
 .DS_Store
 Thumbs.db
-
-# ---- JetBrains / Goland ----
 .idea/
-
-# ---- VSCode ----
 .vscode/
-
-# ---- Env / Credentials ----
-.env
-.env.local
-.env.*.local
-
-# ---- Uploaded Files ----
-uploads/
+*.swp
+*.swo
 
 # ---- Swagger docs / Auto-generated ----
 #docs/
 #docs/swagger.json
 #docs/swagger.yaml
-
-# ---- Fiber specific temp files ----
-fiber.pid
-
-# ---- GORM SQLite (if any) ----
-*.db
-*.sqlite
-*.sqlite3

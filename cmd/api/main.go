@@ -7,35 +7,33 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 func main() {
-	// ✅ Load config
 	cfg := configs.LoadConfig()
 
-	// ✅ Init dependencies (pakai cfg)
-	configs.InitS3(cfg)
+	// Init Dependencies
 	configs.ConnectDB(cfg)
-	configs.SeedDatabase(configs.DB)
-	//configs.SeedDatabase(cfg)
 	configs.ConnectRedis(cfg)
+	configs.InitS3(cfg)
 
-	// ✅ Init Fiber
-	app := fiber.New()
+	// Fiber Instance
+	app := fiber.New(fiber.Config{
+		AppName: "SEIDO OCR Enterprise API",
+	})
 
-	// ✅ CORS (dev only)
+	// Middleware
+	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
-		AllowMethods: "*",
-		AllowHeaders: "*",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
-	// ✅ Static file
+	// Static files & Routes
 	app.Static("/uploads", "./uploads")
-
-	// ✅ Routes
 	routes.SetupRoutes(app)
 
-	log.Println("🚀 API running on http://localhost:8080")
-	log.Fatal(app.Listen(":8080"))
+	log.Printf("🚀 SEIDO API started on port %s", cfg.AppPort)
+	log.Fatal(app.Listen(":" + cfg.AppPort))
 }

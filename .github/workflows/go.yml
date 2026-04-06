@@ -26,13 +26,21 @@ jobs:
       run: go mod verify
 
     - name: Build API Service
-      # Memastikan folder cmd/api tidak error
-      run: go build -v -o seido-api ./cmd/api/...
+      run: go build -v -o seido-api ./cmd/api
 
     - name: Build OCR Worker
-      # Memastikan folder cmd/ocr-worker tidak error
-      run: go build -v -o seido-worker ./cmd/ocr-worker/...
+      run: go build -v -o seido-worker ./cmd/ocr-worker
 
     - name: Run Unit Tests
-      # Menjalankan semua test di internal dan pkg
       run: go test -v ./internal/... ./pkg/...
+
+    # Tambahan: Verifikasi Docker Build
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Test Docker Build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false # Hanya tes build, jangan push ke registry dulu
+        tags: seido-ocr:latest

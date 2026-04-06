@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # 1. Database - Otak dari Data Struk Kamu
+  postgres_db:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ocr
+    ports:
+      - "5432:5432"
+    volumes:
+      - ocr_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ocr"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - seido-network
+
+  # 2. Redis - Antrean Job untuk OCR
+  redis_db:
+    image: redis:7
+    container_name: redis_db
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - seido-network
+
+  # 3. Localstack - Simulasi AWS S3 (Penyimpanan Gambar Struk)
+  localstack:
+    image: localstack/localstack
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+    networks:
+      - seido-network
+
+  # 4. SEIDO API - Gerbang Utama
+  seido-api:
+    image: seido-app-test:latest
+    container_name: seido_api_container
+    ports:
+      - "8080:8080"  # Mapping Port 8080 agar bisa di-curl dari luar
+    env_file: .env   # Membaca variabel dari file .env di folder kamu
+    restart: always
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_db:
+        condition: service_healthy
+    networks:
+      - seido-network
+
+  # 5. SEIDO Worker - Buruh Kasar (OCR & AI Processing)
+  seido-worker:
+    image: seido-app-test:latest
+    container_name: seido_worker_container
+    command: ["./seido-worker"] # Menjalankan binary worker, bukan api
+    env_file: .env
+    restart: always
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis_db:
+        condition: service_healthy
+    networks:
+      - seido-network
+
+networks:
+  seido-network:
+    driver: bridge
+
+volumes:
+  ocr_postgres_data:

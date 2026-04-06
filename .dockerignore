@@ -1,0 +1,7 @@
+# .dockerignore
+seido-api
+seido-worker
+.git
+.idea
+.vscode
+*.log

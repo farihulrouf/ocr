@@ -9,63 +9,75 @@ import (
 )
 
 type Config struct {
+	// App Config
+	AppPort    string
+	JWTSecret  string
+	MistralKey string
+
+	// Database Config
 	DBHost     string
 	DBUser     string
 	DBPassword string
 	DBName     string
 	DBPort     string
 	DBSSLMode  string
-	DBTimeZone string
+	DBTimeZone string // <--- Penting agar ConnectDB tidak error
 
+	// Redis Config
 	RedisAddr string
 	RedisPass string
 	RedisDB   string
 
-	AWSRegion  string
+	// Storage Config (INI YANG BIKIN ERROR TADI)
+	AWSRegion  string // <--- Harus ada ini!
 	S3Bucket   string
 	S3Endpoint string
 }
 
 func LoadConfig() *Config {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Println("❌ .env NOT FOUND:", err)
+	// Cek file .env
+	if _, err := os.Stat(".env"); err == nil {
+		_ = godotenv.Load(".env")
+		log.Println("✅ .env file loaded")
 	} else {
-		log.Println("✅ .env loaded")
+		log.Println("ℹ️  Using System Environment (Docker Mode)")
 	}
 
 	cfg := &Config{
+		AppPort:    getEnv("APP_PORT", "8080"),
+		JWTSecret:  getEnv("JWT_SECRET", "super-secret-key"),
+		MistralKey: os.Getenv("MISTRAL_API_KEY"),
+
 		DBHost:     os.Getenv("DB_HOST"),
 		DBUser:     os.Getenv("DB_USER"),
 		DBPassword: os.Getenv("DB_PASSWORD"),
 		DBName:     os.Getenv("DB_NAME"),
-		DBPort:     os.Getenv("DB_PORT"),
-		DBSSLMode:  os.Getenv("DB_SSLMODE"),
-		DBTimeZone: os.Getenv("DB_TIMEZONE"),
+		DBPort:     getEnv("DB_PORT", "5432"),
+		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		DBTimeZone: getEnv("DB_TIMEZONE", "Asia/Jakarta"),
 
 		RedisAddr: os.Getenv("REDIS_ADDR"),
 		RedisPass: os.Getenv("REDIS_PASSWORD"),
-		RedisDB:   os.Getenv("REDIS_DB"),
+		RedisDB:   getEnv("REDIS_DB", "0"),
 
-		AWSRegion:  os.Getenv("AWS_REGION"),
+		// Mapping Field untuk S3
+		AWSRegion:  getEnv("AWS_REGION", "us-east-1"),
 		S3Bucket:   os.Getenv("S3_BUCKET"),
 		S3Endpoint: os.Getenv("S3_ENDPOINT"),
 	}
 
-	// 🔥 DEBUG (AMAN – tanpa password)
-	fmt.Println("========== DEBUG CONFIG ==========")
-	fmt.Println("DB_HOST     :", cfg.DBHost)
-	fmt.Println("DB_PORT     :", cfg.DBPort)
-	fmt.Println("DB_USER     :", cfg.DBUser)
-	fmt.Println("DB_NAME     :", cfg.DBName)
-	fmt.Println("DB_SSLMODE  :", cfg.DBSSLMode)
-	fmt.Println("REDIS_ADDR  :", cfg.RedisAddr)
-	fmt.Println("S3_ENDPOINT :", cfg.S3Endpoint)
-	fmt.Println("==================================")
-
-	if cfg.DBHost == "" || cfg.DBUser == "" {
-		log.Fatal("❌ Database config missing")
-	}
+	fmt.Println("\n========== 🛠️  CONFIG LOADED ==========")
+	fmt.Printf("🌐 PORT      : %s\n", cfg.AppPort)
+	fmt.Printf("🗄️  DB HOST   : %s\n", cfg.DBHost)
+	fmt.Printf("☁️  S3 REGION : %s\n", cfg.AWSRegion)
+	fmt.Println("======================================\n")
 
 	return cfg
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
