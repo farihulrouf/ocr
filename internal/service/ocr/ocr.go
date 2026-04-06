@@ -98,7 +98,7 @@ func ProcessOCR(receiptID uuid.UUID) error {
 	}
 
 	//extracted := "Full text from OCR..."
-	fmt.Printf("[DEBUG] Full Text Extracted (Length: characters)\n", rawText)
+	fmt.Printf("[DEBUG] Full Text Extracted: %s\n", rawText)
 
 	// 3.5. Ubah teks mentah menjadi JSON terstruktur (MENGGUNAKAN AI CHAT)
 	// Langkah ini sangat penting agar ParseReceipt tidak error!
