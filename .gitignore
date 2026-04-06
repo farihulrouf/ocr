@@ -11,7 +11,7 @@ dist/
 *.out
 
 # ---- Go Modules ----
-go.sum
+#go.sum
 vendor/
 
 # ---- Temporary files ----
