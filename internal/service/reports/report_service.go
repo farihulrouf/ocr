@@ -15,16 +15,27 @@ import (
 func GetMyReports(
 	tenantID, userID uuid.UUID,
 	page, pageSize int,
-	status string, // ✅ Tambah parameter status
+	status string,
+	role string, // <--- Terima Role
 ) ([]dto.ExpenseReportResponse, int64, error) {
 
+	// LOGIKA: Jika dia bukan EMPLOYEE, kirim uuid.Nil ke repo
+	// supaya repo tidak memfilter berdasarkan user_id.
+	filterUserID := userID
+	if role != "EMPLOYEE" {
+		filterUserID = uuid.Nil
+	}
+
+	// Panggil Repo (Cukup 5 Argumen, role tidak perlu dikirim ke DB)
 	rows, total, err := repo.ListMyReports(
-		tenantID, userID, page, pageSize, status,
+		tenantID, filterUserID, page, pageSize, status,
 	)
+
 	if err != nil {
 		return nil, 0, err
 	}
 
+	// Mapping ke DTO
 	result := make([]dto.ExpenseReportResponse, 0)
 	for _, r := range rows {
 		result = append(result, ToExpenseReportResponse(r))
@@ -189,8 +200,9 @@ func RejectReport(
 	)
 }
 
+// Tambahkan parameter role string
 func GetMyReportDetail(
-	tenantID, userID, reportID uuid.UUID,
+	tenantID, userID, reportID uuid.UUID, role string,
 ) (*dto.ExpenseReportResponse, error) {
 
 	report, err := repo.GetByID(tenantID, reportID)
@@ -198,8 +210,10 @@ func GetMyReportDetail(
 		return nil, err
 	}
 
-	// ownership check
-	if report.UserID != userID {
+	// --- LOGIKA BARU ---
+	// Jika dia adalah EMPLOYEE, dia WAJIB menjadi pemilik report (UserID harus sama)
+	// Jika dia MANAGER, FINANCE, atau ADMIN, dia BOLEH melihat asalkan TenantID sama (TenantID sudah dicek di repo.GetByID)
+	if role == "EMPLOYEE" && report.UserID != userID {
 		return nil, errors.New("not owner of report")
 	}
 

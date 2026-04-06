@@ -100,9 +100,29 @@ type PaymentMethod struct {
 
 type VendorMaster struct {
 	Base
-	TenantID  uuid.UUID `gorm:"type:uuid" json:"tenant_id"`
-	Name      string    `json:"name"`
-	TaxNumber string    `json:"tax_number"`
+	// TenantID dibuat pointer (*uuid.UUID) agar bisa NULL
+	// NULL artinya ini Vendor Global (milik sistem Mas)
+	TenantID *uuid.UUID `gorm:"type:uuid;index" json:"tenant_id"`
+
+	Name        string `gorm:"not null;index" json:"name"`
+	DisplayName string `json:"display_name"` // Nama beken untuk UI (e.g. "Starbucks")
+
+	// CountryCode untuk membedakan Starbucks Indonesia vs Malaysia vs Jepang
+	CountryCode string `gorm:"size:5;default:'ID';index" json:"country_code"`
+
+	TaxNumber string `json:"tax_number"` // NPWP / Tax Registration ID
+	Category  string `json:"category"`   // Default category (F&B, Transport, dll)
+
+	// Field sakti untuk OCR: simpan dalam format JSON atau string comma separated
+	// Isinya kata kunci: "SBUX, Starbucks, PT Sari Coffee"
+	Aliases string `gorm:"type:text" json:"aliases"`
+
+	IsGlobal   bool `gorm:"default:false;index" json:"is_global"`
+	IsVerified bool `gorm:"default:true" json:"is_verified"`
+
+	// Optional: Simpan bank info default untuk payment
+	BankName    string `json:"bank_name"`
+	BankAccount string `json:"bank_account"`
 }
 
 // --- GROUP 3: DOCUMENT & OCR ---
@@ -117,6 +137,9 @@ type Receipt struct {
 	AccountCategory   *AccountCategory `gorm:"foreignKey:AccountCategoryID" json:"account_category"`
 	ImageURL          string           `json:"image_url"`
 
+	// Tambahkan relasi ke VendorMaster
+	VendorID *uuid.UUID    `gorm:"type:uuid" json:"vendor_id"`
+	Vendor   *VendorMaster `gorm:"foreignKey:VendorID" json:"vendor"`
 	// 🔥 TAMBAHAN INI
 	OCRText   string `gorm:"type:text" json:"ocr_text"`
 	OCRStatus string `gorm:"default:'PROCESSING'" json:"ocr_status"`

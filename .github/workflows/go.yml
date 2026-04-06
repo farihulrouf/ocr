@@ -1,0 +1,36 @@
+name: SEIDO OCR CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Go 1.24
+      uses: actions/setup-go@v5 # Pakai v5 untuk support versi terbaru
+      with:
+        go-version: '1.24.0'
+        # Cache otomatis biar build berikutnya lebih cepat
+        cache: true
+
+    - name: Install Dependencies
+      run: go mod download
+
+    - name: Verify Module
+      run: go mod verify
+
+    - name: Build Application
+      # Ini akan mem-build semua sub-package di cmd/
+      # Output binary akan dinamai 'ocr-app'
+      run: go build -v -o ocr-app ./cmd/...
+
+    - name: Run Unit Tests
+      # Menjalankan test di internal dan pkg (core logic kamu)
+      run: go test -v ./internal/... ./pkg/...

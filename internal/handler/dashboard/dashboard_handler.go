@@ -34,3 +34,28 @@ func GetManagerDashboard(c *fiber.Ctx) error {
 
 	return c.JSON(data)
 }
+
+// --- NEW FUNCTION: FINANCE DASHBOARD ---
+
+func GetAdminFinanceDashboard(c *fiber.Ctx) error {
+	// 1. Proteksi Role (Hanya Finance & Admin yang bisa akses data uang)
+	role := c.Locals("role").(string)
+	if role != "FINANCE" && role != "ADMIN" {
+		return c.Status(403).JSON(fiber.Map{
+			"error": "Unauthorized: Finance Access Only",
+		})
+	}
+
+	// 2. Ambil Tenant ID dari Middleware (Isolasi data antar perusahaan)
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+
+	// 3. Panggil Service Finance yang sudah kita buat tadi
+	data, err := dashboard.GetAdminFinanceDashboardData(tenantID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to fetch finance dashboard data",
+		})
+	}
+
+	return c.JSON(data)
+}

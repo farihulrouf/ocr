@@ -82,11 +82,6 @@ func SetupRoutes(app *fiber.App) {
 	system.Put("/payments/:id", payments.UpdatePayments)
 	system.Delete("/payments/:id", payments.DeletePayments)
 
-	system.Get("/vendors", vendors.GetAllVendors)
-	system.Post("/vendors", vendors.CreateVendor)
-	system.Put("/vendors/:id", vendors.UpdateVendor)
-	system.Delete("/vendors/:id", vendors.DeleteVendor)
-
 	//finance := api.Group("/finance", middleware.Auth())
 
 	//finance.Get("/categories", handler.ListCategories)
@@ -147,7 +142,7 @@ func SetupRoutes(app *fiber.App) {
 	manager.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", receipts.DeleteReceiptItem)
 	manager.Get("/dashboard", dashboard.GetManagerDashboard)
-
+	//manager.Get("/reports/:id", reports.GetMyReportDetail)
 	// --- BUDGET MANAGEMENT (FITUR BARU) ---
 	manager.Get("/budget", budgets.ListBudgets)          // List budget tenant
 	manager.Post("/budget", budgets.HandleSetBudget)     // Set/Update budget
@@ -176,9 +171,15 @@ func SetupRoutes(app *fiber.App) {
 
 	// Ambil list report yang statusnya 'APPROVED' (Siap dibayar)
 	finance.Get("/reports/ready", reports.GetReadyToPayReports)
-
+	finance.Get("/reports/:id", reports.GetMyReportDetail)
+	finance.Get("/dashboard", dashboard.GetAdminFinanceDashboard)
 	// Eksekusi pembayaran (Update status ke PAID & buat record disbursement)
 	// Handler: disbursement.ExecutePayment
 	finance.Post("/pay", disbursement.ExecutePayment)
+
+	finance.Get("/vendors", vendors.GetAllVendorsHandler)
+	finance.Post("/vendors", vendors.CreateVendor)
+	finance.Put("/vendors/:id", vendors.UpdateVendor)
+	finance.Delete("/vendors/:id", vendors.DeleteVendor)
 
 }

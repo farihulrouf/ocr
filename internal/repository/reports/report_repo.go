@@ -8,35 +8,35 @@ import (
 )
 
 func ListMyReports(
-	tenantID, userID uuid.UUID,
+	tenantID, userID uuid.UUID, // Parameter tetap 5
 	page, pageSize int,
-	status string, // ✅ Tambah parameter status
+	status string,
 ) ([]models.ExpenseReport, int64, error) {
 
 	var rows []models.ExpenseReport
 	var total int64
 
-	// Base Query
-	db := configs.DB.
-		Model(&models.ExpenseReport{}).
-		Where("tenant_id = ? AND user_id = ?", tenantID, userID)
+	// 1. Base Query: Selalu kunci dengan TenantID (Wajib!)
+	db := configs.DB.Model(&models.ExpenseReport{}).Where("tenant_id = ?", tenantID)
 
-	// ✅ Filter berdasarkan status jika dikirim dari UI
+	// 2. Jika userID TIDAK Nil (Berarti dia Employee), filter berdasarkan userID
+	if userID != uuid.Nil {
+		db = db.Where("user_id = ?", userID)
+	}
+
+	// 3. Filter Status (Optional)
 	if status != "" && status != "all" {
 		db = db.Where("status = ?", status)
 	}
 
-	// Hitung Total setelah difilter
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+	// 4. Hitung Total & Ambil Data
+	db.Count(&total)
 
 	offset := (page - 1) * pageSize
-
 	err := db.
 		Preload("Receipts").
-		Preload("User").     // Load data pengaju
-		Preload("Approver"). // Load data manajer (penting!)
+		Preload("User").
+		Preload("Approver").
 		Order("created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
