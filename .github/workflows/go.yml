@@ -14,10 +14,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Go 1.24
-      uses: actions/setup-go@v5 # Pakai v5 untuk support versi terbaru
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24.0'
-        # Cache otomatis biar build berikutnya lebih cepat
         cache: true
 
     - name: Install Dependencies
@@ -26,11 +25,14 @@ jobs:
     - name: Verify Module
       run: go mod verify
 
-    - name: Build Application
-      # Ini akan mem-build semua sub-package di cmd/
-      # Output binary akan dinamai 'ocr-app'
-      run: go build -v -o ocr-app ./cmd/...
+    - name: Build API Service
+      # Memastikan folder cmd/api tidak error
+      run: go build -v -o seido-api ./cmd/api/...
+
+    - name: Build OCR Worker
+      # Memastikan folder cmd/ocr-worker tidak error
+      run: go build -v -o seido-worker ./cmd/ocr-worker/...
 
     - name: Run Unit Tests
-      # Menjalankan test di internal dan pkg (core logic kamu)
+      # Menjalankan semua test di internal dan pkg
       run: go test -v ./internal/... ./pkg/...
