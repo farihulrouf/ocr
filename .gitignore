@@ -3,6 +3,10 @@ bin/
 build/
 dist/
 main
+seido-api
+seido-worker
+test-api
+api
 ocr-saas-backend
 *.exe
 *.exe~
@@ -12,15 +16,22 @@ ocr-saas-backend
 *.test
 *.out
 
+# ---- Terraform (WAJIB ADA) ----
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+.terraform.tfstate.lock.info
+
 # ---- Go Modules ----
-#go.sum (biasanya tetap di-push untuk keamanan versi, tapi kalau mau di-ignore hapus pagarnya)
 vendor/
 
-# ---- Docker Data (PENTING: Biar isi DB lokal gak ke-push) ----
+# ---- Docker Data (PENTING) ----
 pgdata/
 redisdata/
 localstack_data/
 .docker-data/
+ocr_postgres_data/
 
 # ---- Database Backups & SQL ----
 *.sql
@@ -61,8 +72,3 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-
-# ---- Swagger docs / Auto-generated ----
-#docs/
-#docs/swagger.json
-#docs/swagger.yaml
