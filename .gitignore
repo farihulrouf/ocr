@@ -15,6 +15,9 @@ ocr-saas-backend
 *.dylib
 *.test
 *.out
+export-worker
+function.zip
+*.zip
 
 # ---- Terraform (WAJIB ADA) ----
 .terraform/
