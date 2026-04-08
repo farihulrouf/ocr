@@ -154,7 +154,8 @@ func SetupRoutes(app *fiber.App) {
 	manager.Get("/reports", reports.GetPendingReports)
 	manager.Post("/reports/:id/approve", reports.ApproveReport)
 	manager.Post("/reports/:id/reject", reports.RejectReport)
-
+	manager.Post("/reports/export", reports.HandleExport)
+	manager.Get("/reports/export/logs", reports.HandleGetExportLogs) // <-- Daftarkan ini!
 	// =============================
 	// MANAGER - REPORT APPROVAL
 	// =============================

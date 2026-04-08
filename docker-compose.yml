@@ -36,14 +36,21 @@ services:
       - seido-network
 
   # 3. Localstack - Simulasi AWS S3 (Penyimpanan Gambar Struk)
+  # 3. Localstack - Simulasi AWS S3 & Lambda
   localstack:
     image: localstack/localstack
     container_name: localstack
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=s3
+      - SERVICES=s3,lambda,iam,logs  # TAMBAHKAN lambda, iam, dan logs di sini
       - DEBUG=1
+      - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=120 # TAMBAHKAN INI: Biar gak timeout pas startup
+      - DOCKER_HOST=unix:///var/run/docker.sock # TAMBAHKAN INI: Supaya Localstack bisa bikin container Lambda
+      - LAMBDA_DOCKER_NETWORK=seido-network # PENTING: Agar Lambda masuk ke network yang sama dengan Postgres
+      - LAMBDA_REMOVE_CONTAINERS=true  # TAMBAHKAN INI
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock" # TAMBAHKAN INI: Link ke docker engine kamu
     networks:
       - seido-network
 

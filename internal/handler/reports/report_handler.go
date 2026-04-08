@@ -1,7 +1,7 @@
 package reports
 
 import (
-	"ocr-saas-backend/internal/service/reports"
+	svc "ocr-saas-backend/internal/service/reports"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -20,7 +20,7 @@ func GetMyReports(c *fiber.Ctx) error {
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
 	// 3. Panggil Service dengan menyertakan ROLE (6 Argumen)
-	data, total, err := reports.GetMyReports(
+	data, total, err := svc.GetMyReports(
 		tenantID, userID, page, pageSize, status, role,
 	)
 
@@ -55,7 +55,7 @@ func CreateReport(c *fiber.Ctx) error {
 	}
 
 	// Eksekusi create
-	newReport, err := reports.CreateReport(tenantID, userID, body.Title)
+	newReport, err := svc.CreateReport(tenantID, userID, body.Title)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"message": err.Error()})
 	}
@@ -73,7 +73,7 @@ func SubmitReport(c *fiber.Ctx) error {
 	userID := uuid.MustParse(c.Locals("user_id").(string))
 	reportID := uuid.MustParse(c.Params("id"))
 
-	if err := reports.SubmitReport(
+	if err := svc.SubmitReport(
 		tenantID, userID, reportID,
 	); err != nil {
 		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
@@ -95,7 +95,7 @@ func UpdateReport(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"message": "invalid body"})
 	}
 
-	if err := reports.UpdateReport(
+	if err := svc.UpdateReport(
 		tenantID, userID, reportID, body.Title,
 	); err != nil {
 		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
@@ -110,7 +110,7 @@ func GetPendingReports(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
-	data, total, err := reports.GetPendingReports(
+	data, total, err := svc.GetPendingReports(
 		tenantID, page, pageSize,
 	)
 	if err != nil {
@@ -143,7 +143,7 @@ func ApproveReport(c *fiber.Ctx) error {
 	}
 
 	// 4. PANGGIL SERVICE dengan 3 PARAMETER (tenantID, reportID, managerID)
-	if err := reports.ApproveReport(tenantID, reportID, managerID); err != nil {
+	if err := svc.ApproveReport(tenantID, reportID, managerID); err != nil {
 		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
 	}
 
@@ -166,7 +166,7 @@ func RejectReport(c *fiber.Ctx) error {
 	}
 
 	// 3. Panggil service dengan 3 parameter
-	if err := reports.RejectReport(tenantID, reportID, managerID); err != nil {
+	if err := svc.RejectReport(tenantID, reportID, managerID); err != nil {
 		return c.Status(400).JSON(fiber.Map{"message": err.Error()})
 	}
 
@@ -179,7 +179,7 @@ func GetMyReportDetail(c *fiber.Ctx) error {
 	role := c.Locals("role").(string) // Ambil role dari middleware
 	reportID := uuid.MustParse(c.Params("id"))
 
-	data, err := reports.GetMyReportDetail(
+	data, err := svc.GetMyReportDetail(
 		tenantID, userID, reportID, role,
 	)
 
@@ -217,7 +217,7 @@ func AddReceiptsToReport(c *fiber.Ctx) error {
 		ids[i] = id
 	}
 
-	err := reports.AddReceiptsToReport(tenantID, reportID, ids)
+	err := svc.AddReceiptsToReport(tenantID, reportID, ids)
 	if err != nil {
 		return fiber.NewError(500, err.Error())
 	}
@@ -231,7 +231,7 @@ func RemoveReceiptFromReport(c *fiber.Ctx) error {
 	receiptID := uuid.MustParse(c.Params("receiptId"))
 	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
 
-	err := reports.RemoveReceiptFromReport(tenantID, reportID, receiptID)
+	err := svc.RemoveReceiptFromReport(tenantID, reportID, receiptID)
 	if err != nil {
 		return fiber.NewError(500, err.Error())
 	}
@@ -251,7 +251,7 @@ func GetReadyToPayReports(c *fiber.Ctx) error {
 
 	// Panggil fungsi Service yang barusan Mas kasih ke saya
 	// Masukkan variabel 'status' ke argumen terakhir
-	data, total, err := reports.GetReadyToPayReports(
+	data, total, err := svc.GetReadyToPayReports(
 		tenantID,
 		page,
 		pageSize,
