@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"ocr-saas-backend/internal/infrastructure/aws"
+	"ocr-saas-backend/internal/models"
 	repo "ocr-saas-backend/internal/repository/reports"
 
 	"github.com/google/uuid"
@@ -45,4 +46,9 @@ func TriggerExpenseExport(ctx context.Context, tenantID, userID uuid.UUID, statu
 	log.Printf("[Service] Sukses memicu Lambda untuk LogID: %s", logEntry.ID.String())
 
 	return nil
+}
+
+func GetRecentExportLogs(ctx context.Context, tenantID uuid.UUID, limit int) ([]models.ExportLog, error) {
+	// Service tinggal memanggil repository
+	return repo.GetExportLogs(tenantID, limit)
 }

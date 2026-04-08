@@ -4,6 +4,7 @@ import (
 	"fmt" // Pastikan import fmt ini ada
 	"log"
 	"ocr-saas-backend/internal/service/reports"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -59,5 +60,30 @@ func HandleExport(c *fiber.Ctx) error {
 			"status":    status,
 			"tenant_id": tenantID,
 		},
+	})
+}
+
+// HandleGetExportLogs - GET /v0/api/manager/reports/export/logs
+func HandleGetExportLogs(c *fiber.Ctx) error {
+	tenantIDRaw := c.Locals("tenant_id")
+	if tenantIDRaw == nil {
+		return c.Status(401).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	tenantID, _ := uuid.Parse(fmt.Sprintf("%v", tenantIDRaw))
+
+	// Ambil limit dari query param (misal: ?limit=1)
+	limitStr := c.Query("limit", "10")
+	limit, _ := strconv.Atoi(limitStr)
+
+	// Panggil Service
+	logs, err := reports.GetRecentExportLogs(c.Context(), tenantID, limit)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Gagal mengambil riwayat"})
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   logs,
 	})
 }
