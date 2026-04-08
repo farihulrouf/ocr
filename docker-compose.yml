@@ -48,6 +48,7 @@ services:
       - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=120 # TAMBAHKAN INI: Biar gak timeout pas startup
       - DOCKER_HOST=unix:///var/run/docker.sock # TAMBAHKAN INI: Supaya Localstack bisa bikin container Lambda
       - LAMBDA_DOCKER_NETWORK=seido-network # PENTING: Agar Lambda masuk ke network yang sama dengan Postgres
+      - LAMBDA_REMOVE_CONTAINERS=true  # TAMBAHKAN INI
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock" # TAMBAHKAN INI: Link ke docker engine kamu
     networks:
