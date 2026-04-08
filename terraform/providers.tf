@@ -13,7 +13,13 @@ provider "aws" {
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
-  endpoints { s3 = local.s3_endpoint }
+  endpoints {
+    s3     = local.s3_endpoint
+    lambda = "http://localhost:4566" # Tambahkan ini!
+    iam    = "http://localhost:4566" # Tambahkan ini!
+  }
 }
 
 provider "docker" {}
+
+

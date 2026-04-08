@@ -12,21 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// TriggerExpenseExport - Logika bisnis untuk memulai proses export
-// Kita tambahkan parameter ctx agar bisa meneruskan context dari Handler Fiber
+// TriggerExpenseExport - Memulai proses export data expense
 func TriggerExpenseExport(ctx context.Context, tenantID, userID uuid.UUID, status string) error {
+	log.Printf("[Service] Memulai proses export untuk Tenant: %s, User: %s, Status: %s", tenantID, userID, status)
 
-	log.Printf("[Service] Memulai proses export untuk Tenant: %s, User: %s", tenantID, userID)
-
-	// 1. Buat log di DB (Status awal biasanya kosong/PENDING di database)
-	// Fungsi ini memastikan kita punya ID Record sebelum Lambda jalan
+	// 1. Buat log awal di database dengan format EXCEL
 	logEntry, err := repo.CreateExportLog(tenantID, userID, "EXCEL")
 	if err != nil {
 		return fmt.Errorf("gagal membuat export log di database: %v", err)
 	}
 
-	// 2. Siapkan Payload menggunakan struct yang sudah kita buat di package aws
-	// Ini lebih aman daripada pakai map[string]interface{} agar tidak typo key-nya
+	// 2. Siapkan Payload untuk dikirim ke AWS Lambda
 	payload := aws.ExportPayload{
 		ExportLogID: logEntry.ID.String(),
 		TenantID:    tenantID.String(),
@@ -34,21 +30,19 @@ func TriggerExpenseExport(ctx context.Context, tenantID, userID uuid.UUID, statu
 		Status:      status,
 	}
 
-	// 3. Panggil Lambda secara Async
-	// Kita panggil fungsi invoke yang tadi kita buat di internal/infrastructure/aws
+	// 3. Panggil Lambda secara Async (Fire and Forget)
 	err = aws.InvokeExportLambda(ctx, payload)
 	if err != nil {
-		// Jika gagal panggil Lambda, kita log error-nya
-		// Tapi log di DB sudah terlanjur dibuat (bisa buat cleanup logic di sini jika perlu)
+		log.Printf("[Service] ❌ Gagal memicu Lambda: %v", err)
 		return fmt.Errorf("gagal memicu worker export: %v", err)
 	}
 
-	log.Printf("[Service] Sukses memicu Lambda untuk LogID: %s", logEntry.ID.String())
-
+	log.Printf("[Service] ✅ Sukses memicu Lambda. LogID: %s", logEntry.ID.String())
 	return nil
 }
 
+// GetRecentExportLogs - Mengambil daftar riwayat export terbaru
 func GetRecentExportLogs(ctx context.Context, tenantID uuid.UUID, limit int) ([]models.ExportLog, error) {
-	// Service tinggal memanggil repository
+	log.Printf("[Service] Mengambil %d riwayat export terakhir untuk Tenant: %s", limit, tenantID)
 	return repo.GetExportLogs(tenantID, limit)
 }
