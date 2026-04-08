@@ -1,5 +1,6 @@
-# 1. Resource: Build Image Docker
-# Terraform akan build image dari Dockerfile di folder utama (..)
+# =====================================================
+# 1. RESOURCE: BUILD IMAGE DOCKER
+# =====================================================
 resource "docker_image" "seido_app_image" {
   name = "seido-app:latest"
   build {
@@ -9,7 +10,9 @@ resource "docker_image" "seido_app_image" {
   }
 }
 
-# 2. Resource: Container SEIDO API (Hanya 1 Instance)
+# =====================================================
+# 2. RESOURCE: CONTAINER SEIDO API
+# =====================================================
 resource "docker_container" "seido_api" {
   name  = "seido-api-instance"
   image = docker_image.seido_app_image.image_id
@@ -23,22 +26,30 @@ resource "docker_container" "seido_api" {
     name = data.docker_network.ocr_network.name
   }
 
-  env = local.env_lines
+  # KUNCI PERBAIKAN:
+  # Kita paksa API menggunakan koordinat LocalStack dan nama fungsi yang BENAR
+  env = concat(local.env_lines, [
+    "S3_ENDPOINT=http://localstack:4566",
+    "AWS_ENDPOINT=http://localstack:4566",
+    "AWS_LAMBDA_ENDPOINT=http://localstack:4566",
+    "AWS_REGION=us-east-1",
+    # Nama ini HARUS sama dengan function_name di lambda.tf
+    "AWS_LAMBDA_FUNCTION_NAME=seido-export-service" 
+  ])
 
   restart = "always"
 
-  # API baru jalan setelah Bucket S3 di Localstack siap
-  depends_on = [aws_s3_bucket.ocr_bucket]
+  # API baru jalan setelah Bucket S3 dan Lambda siap
+  depends_on = [aws_s3_bucket.ocr_bucket, aws_lambda_function.export_worker]
 }
 
-# 3. Resource: Container SEIDO WORKER (Scaling Horizontal)
+# =====================================================
+# 3. RESOURCE: CONTAINER SEIDO WORKER (SCALING)
+# =====================================================
 resource "docker_container" "seido_worker" {
-  # Kita set 2 worker saja dulu biar aman
   count = 2  
 
-  # Nama akan otomatis jadi seido-worker-0 dan seido-worker-1
   name  = "seido-worker-${count.index}"
-  
   image = docker_image.seido_app_image.image_id
   
   # Override CMD untuk menjalankan binary worker
@@ -48,10 +59,14 @@ resource "docker_container" "seido_worker" {
     name = data.docker_network.ocr_network.name
   }
 
-  env = local.env_lines
+  # Worker juga butuh koneksi yang sama ke database dan localstack
+  env = concat(local.env_lines, [
+    "S3_ENDPOINT=http://localstack:4566",
+    "AWS_ENDPOINT=http://localstack:4566",
+    "AWS_REGION=us-east-1"
+  ])
 
   restart = "always"
 
-  # Worker juga butuh S3 Bucket siap
   depends_on = [aws_s3_bucket.ocr_bucket]
 }
