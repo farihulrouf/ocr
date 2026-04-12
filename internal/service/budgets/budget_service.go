@@ -225,3 +225,56 @@ func ConsumeBudgetLogic(tx *gorm.DB, tenantID uuid.UUID, amount int64) error {
 
 	return budgets.UpdateSpentAmount(tx, budget.ID, amount)
 }
+
+func GetFinanceBudgetSummary(tID uuid.UUID, month int, year int) (dto.FinanceBudgetSummary, error) {
+	var rows []models.Budget
+
+	// 1. Ambil semua budget untuk tenant tersebut di periode tertentu
+	err := configs.DB.
+		Where("tenant_id = ? AND month = ? AND year = ?", tID, month, year).
+		Find(&rows).Error
+
+	if err != nil {
+		return dto.FinanceBudgetSummary{}, err
+	}
+
+	var summary dto.FinanceBudgetSummary
+	summary.Month = month
+	summary.Year = year
+
+	// Logic waktu untuk Forecasting
+	now := time.Now()
+	daysInMonth := float64(time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.Local).Day())
+	currentDay := float64(now.Day())
+
+	for _, b := range rows {
+		summary.TotalAllocated += b.LimitAmount
+		summary.TotalSpent += b.SpentAmount
+
+		// --- Logic: Hitung Critical & Forecast per Dept ---
+		if b.LimitAmount > 0 {
+			usagePercent := (float64(b.SpentAmount) / float64(b.LimitAmount)) * 100
+			if usagePercent >= 90 {
+				summary.CriticalDepts++
+			}
+
+			// Forecasting logic (seperti yang kamu buat di CalculateBudgetStats)
+			if currentDay > 0 {
+				avgPerDay := float64(b.SpentAmount) / currentDay
+				estimatedEnd := avgPerDay * daysInMonth
+				if estimatedEnd > float64(b.LimitAmount) {
+					summary.ForecastOver++
+				}
+			}
+		}
+	}
+
+	// --- Final Agregat ---
+	summary.TotalRemaining = summary.TotalAllocated - summary.TotalSpent
+	if summary.TotalAllocated > 0 {
+		rawPercent := (float64(summary.TotalSpent) / float64(summary.TotalAllocated)) * 100
+		summary.TotalPercentage = math.Round(rawPercent*100) / 100
+	}
+
+	return summary, nil
+}

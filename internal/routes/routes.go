@@ -144,7 +144,6 @@ func SetupRoutes(app *fiber.App) {
 	manager.Get("/dashboard", dashboard.GetManagerDashboard)
 	//manager.Get("/reports/:id", reports.GetMyReportDetail)
 	// --- BUDGET MANAGEMENT (FITUR BARU) ---
-	manager.Get("/budget", budgets.ListBudgets)          // List budget tenant
 	manager.Post("/budget", budgets.HandleSetBudget)     // Set/Update budget
 	manager.Get("/budget/stats", budgets.GetBudgetStats) // Data grafik budget vs spent
 
@@ -182,5 +181,7 @@ func SetupRoutes(app *fiber.App) {
 	finance.Post("/vendors", vendors.CreateVendor)
 	finance.Put("/vendors/:id", vendors.UpdateVendor)
 	finance.Delete("/vendors/:id", vendors.DeleteVendor)
+	finance.Get("/budget-summary", budgets.GetFinanceSummary)
+	finance.Get("/budget", budgets.ListBudgets) // List budget tenant
 
 }

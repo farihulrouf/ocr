@@ -18,3 +18,14 @@ type BudgetListItem struct {
 	CreatedBy       string    `json:"created_by"`
 	CreatedAt       string    `json:"created_at"`
 }
+
+type FinanceBudgetSummary struct {
+	TotalAllocated  int64   `json:"total_allocated"`
+	TotalSpent      int64   `json:"total_spent"`
+	TotalRemaining  int64   `json:"total_remaining"`
+	TotalPercentage float64 `json:"total_percentage"`
+	CriticalDepts   int     `json:"critical_departments_count"`
+	ForecastOver    int     `json:"forecast_over_count"` // <--- TAMBAHKAN INI
+	Month           int     `json:"month"`
+	Year            int     `json:"year"`
+}

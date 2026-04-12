@@ -3,6 +3,7 @@ package budgets
 import (
 	budgetService "ocr-saas-backend/internal/service/budgets"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -101,5 +102,44 @@ func GetBudgetStats(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"status": "success",
 		"data":   stats,
+	})
+}
+
+// GetFinanceSummary - Endpoint untuk Dashboard Global Finance
+func GetFinanceSummary(c *fiber.Ctx) error {
+	// 1. Ambil Tenant ID dari middleware auth
+	tenantIDStr, _ := c.Locals("tenant_id").(string)
+	tID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid Tenant ID",
+		})
+	}
+
+	// 2. Ambil parameter Month & Year dari Query URL
+	// Default ke bulan & tahun sekarang jika tidak dikirim dari Frontend
+	now := time.Now()
+	monthStr := c.Query("month", strconv.Itoa(int(now.Month())))
+	yearStr := c.Query("year", strconv.Itoa(now.Year()))
+
+	month, _ := strconv.Atoi(monthStr)
+	year, _ := strconv.Atoi(yearStr)
+
+	// 3. Panggil Service untuk hitung agregat (Summary)
+	summary, err := budgetService.GetFinanceBudgetSummary(tID, month, year)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	// 4. Set Header Charset agar karakter aman (untuk nama dept/manager jika ada)
+	c.Set("Content-Type", "application/json; charset=utf-8")
+
+	return c.Status(200).JSON(fiber.Map{
+		"status": "success",
+		"data":   summary,
 	})
 }

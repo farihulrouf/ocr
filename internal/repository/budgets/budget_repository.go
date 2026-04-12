@@ -58,3 +58,11 @@ func SyncBudgetSpent(tenantID uuid.UUID, category string) error {
 			tenantID, category, month, year).
 		Update("spent_amount", totalSpent).Error
 }
+
+// GetBudgetsByPeriod mengambil semua budget untuk tenant di bulan & tahun tertentu
+func GetBudgetsByPeriod(db *gorm.DB, tenantID uuid.UUID, month int, year int) ([]models.Budget, error) {
+	var budgets []models.Budget
+	err := db.Where("tenant_id = ? AND month = ? AND year = ?", tenantID, month, year).
+		Find(&budgets).Error
+	return budgets, err
+}
