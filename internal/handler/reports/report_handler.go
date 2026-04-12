@@ -239,24 +239,24 @@ func RemoveReceiptFromReport(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "success", "message": "Receipt removed from report"})
 }
 
+// Handler: GET /v0/api/finance/reports/ready
 func GetReadyToPayReports(c *fiber.Ctx) error {
 	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	role := c.Locals("role").(string)
+
+	// Security check
+	if role != "FINANCE" && role != "ADMIN" {
+		return c.Status(403).JSON(fiber.Map{"message": "Akses ditolak"})
+	}
 
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
-	// 🔥 INI YANG PENTING: Ambil status dari URL browser
-	// Contoh URL: .../ready?status=PAID
-	status := c.Query("status", "APPROVED")
+	// SAKTI: Jangan ambil dari Query Param! Langsung paksa "APPROVED"
+	// Ini menjamin data SUBMITTED tidak akan pernah bocor ke sini.
+	status := "APPROVED"
 
-	// Panggil fungsi Service yang barusan Mas kasih ke saya
-	// Masukkan variabel 'status' ke argumen terakhir
-	data, total, err := svc.GetReadyToPayReports(
-		tenantID,
-		page,
-		pageSize,
-		status, // <--- Kirim status ke sini!
-	)
+	data, total, err := svc.GetReadyToPayReports(tenantID, page, pageSize, status)
 
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -266,7 +266,9 @@ func GetReadyToPayReports(c *fiber.Ctx) error {
 		"status": "success",
 		"data":   data,
 		"meta": fiber.Map{
-			"page": page, "total": total,
+			"page":      page,
+			"page_size": pageSize,
+			"total":     total,
 		},
 	})
 }

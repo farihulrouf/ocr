@@ -310,6 +310,8 @@ func RemoveReceiptFromReport(tenantID, reportID, receiptID uuid.UUID) error {
 
 // GetReadyToPayReports mengambil semua laporan yang sudah di-approve Manager dan siap dibayar
 // Ubah: Tambahkan parameter 'status'
+// internal/service/report_service.go (atau file tempat fungsi ini berada)
+
 func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int, status string) ([]models.ExpenseReport, int64, error) {
 	var reports []models.ExpenseReport
 	var total int64
@@ -318,13 +320,14 @@ func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int, status string)
 	query := configs.DB.Model(&models.ExpenseReport{}).
 		Preload("User").
 		Preload("Approver").
-		// 💡 GANTI: "APPROVED" jadi variabel status
+		Preload("Receipts"). // <--- TAMBAHKAN INI! Supaya detail item muncul di Finance
 		Where("tenant_id = ? AND status = ?", tenantID, status)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	// Gunakan Find(&reports) setelah Preload lengkap
 	err := query.Order("updated_at desc").Offset(offset).Limit(pageSize).Find(&reports).Error
 	return reports, total, err
 }

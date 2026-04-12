@@ -184,4 +184,9 @@ func SetupRoutes(app *fiber.App) {
 	finance.Get("/budget-summary", budgets.GetFinanceSummary)
 	finance.Get("/budget", budgets.ListBudgets) // List budget tenant
 
+	finance.Get("/reports/ready", reports.GetReadyToPayReports)
+
+	// Detail report (Pakai handler yang sama, tinggal passing role)
+	finance.Get("/reports/:id", reports.GetMyReportDetail)
+
 }
