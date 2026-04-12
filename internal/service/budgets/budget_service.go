@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ocr-saas-backend/configs"
+	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/models"
 	"ocr-saas-backend/internal/repository/budgets"
 
@@ -152,14 +153,59 @@ func SetBudgetLimit(tenantID, managerID uuid.UUID, category string, limit int64,
 }
 
 // GetTenantBudgets mengambil history budget
-func GetTenantBudgets(tenantID uuid.UUID, year int) ([]models.Budget, error) {
+func GetTenantBudgets(tID uuid.UUID, year int) ([]dto.BudgetListItem, error) {
 	var rows []models.Budget
-	db := configs.DB.Where("tenant_id = ?", tenantID)
-	if year != 0 {
-		db = db.Where("year = ?", year)
+
+	// 1. Ambil data dari DB dengan Preload
+	err := configs.DB.
+		Preload("Department").
+		Preload("Creator").
+		Where("tenant_id = ?", tID).
+		Where("year = ?", year).
+		Order("month DESC, created_at DESC").
+		Find(&rows).Error
+
+	if err != nil {
+		return nil, err
 	}
-	err := db.Order("year DESC, month DESC").Find(&rows).Error
-	return rows, err
+
+	// 2. Mapping ke DTO
+	var response []dto.BudgetListItem
+	for _, b := range rows {
+		// Logic nama departemen
+		deptName := "General"
+		if b.Department != nil {
+			deptName = b.Department.Name
+		}
+
+		// Logic Persentase (Rounding ke 2 desimal)
+		var percent float64
+		if b.LimitAmount > 0 {
+			rawPercent := (float64(b.SpentAmount) / float64(b.LimitAmount)) * 100
+			percent = math.Round(rawPercent*100) / 100
+		}
+
+		// Logic Alert Level (Kritis jika > 90%)
+		isCritical := percent >= 90.0
+
+		// Masukkan ke array response
+		response = append(response, dto.BudgetListItem{
+			ID:              b.ID,
+			Category:        b.Category,
+			LimitAmount:     b.LimitAmount,
+			SpentAmount:     b.SpentAmount,
+			RemainingAmount: b.LimitAmount - b.SpentAmount,
+			Percentage:      percent,
+			IsCritical:      isCritical,
+			Month:           b.Month,
+			Year:            b.Year,
+			DepartmentName:  deptName,
+			CreatedBy:       b.Creator.Name,
+			CreatedAt:       b.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return response, nil
 }
 
 // ConsumeBudgetLogic dipanggil di Report Service saat Approval (Manual Update)

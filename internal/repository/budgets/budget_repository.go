@@ -12,7 +12,11 @@ import (
 // GetBudgetByCategory mengambil data budget berdasarkan tenant dan kategori
 func GetBudgetByCategory(db *gorm.DB, tenantID uuid.UUID, category string) (*models.Budget, error) {
 	var budget models.Budget
-	err := db.Where("tenant_id = ? AND category = ?", tenantID, category).First(&budget).Error
+	// Tambahkan .Preload("Department") dan .Preload("Creator")
+	err := db.Preload("Department").
+		Preload("Creator").
+		Where("tenant_id = ? AND category = ?", tenantID, category).
+		First(&budget).Error
 	return &budget, err
 }
 
