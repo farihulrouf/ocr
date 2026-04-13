@@ -28,14 +28,18 @@ func ToExpenseReportResponse(r models.ExpenseReport) dto.ExpenseReportResponse {
 			Email: r.User.Email,
 		}
 	}
-	approver := dto.UserResponse{}
+	// 1. Inisialisasi Approver sebagai NIL (kosong) secara default
+	var approverPtr *dto.UserResponse
 
-	// 2. CEK: Jika status bukan DRAFT/SUBMITTED dan relasi Approver ada
-	if (r.Status == "APPROVED" || r.Status == "REJECTED") && r.Approver != nil {
-		approver = dto.UserResponse{
-			ID:    r.Approver.ID.String(),
-			Name:  r.Approver.Name,
-			Email: r.Approver.Email,
+	// 2. CEK: Jika sudah di-approve/reject dan datanya ada
+	if (r.Status == "APPROVED" || r.Status == "REJECTED" || r.Status == "PAID") && r.Approver != nil {
+		// Gunakan tanda & untuk mengambil ALAMAT memori (Pointer)
+		approverPtr = &dto.UserResponse{
+			ID:     r.Approver.ID.String(),
+			Name:   r.Approver.Name,
+			Email:  r.Approver.Email,
+			Role:   r.Approver.Role, // Masukkan Role & Avatar sekalian Mas
+			Avatar: r.Approver.Avatar,
 		}
 	}
 
@@ -45,8 +49,8 @@ func ToExpenseReportResponse(r models.ExpenseReport) dto.ExpenseReportResponse {
 		TotalAmount: r.TotalAmount,
 		Status:      r.Status,
 		CreatedAt:   r.CreatedAt,
-		User:        user,     // ⬅️ TAMBAHAN
-		Approver:    approver, // <--- TAMBAHKAN INI
+		User:        user,
+		Approver:    approverPtr, // <--- Sekarang sudah cocok (Pointer ketemu Pointer)
 		Receipts:    receipts,
 	}
 }

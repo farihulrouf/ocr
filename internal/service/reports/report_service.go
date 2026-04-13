@@ -312,22 +312,18 @@ func RemoveReceiptFromReport(tenantID, reportID, receiptID uuid.UUID) error {
 // Ubah: Tambahkan parameter 'status'
 // internal/service/report_service.go (atau file tempat fungsi ini berada)
 
-func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int, status string) ([]models.ExpenseReport, int64, error) {
-	var reports []models.ExpenseReport
-	var total int64
-	offset := (page - 1) * pageSize
-
-	query := configs.DB.Model(&models.ExpenseReport{}).
-		Preload("User").
-		Preload("Approver").
-		Preload("Receipts"). // <--- TAMBAHKAN INI! Supaya detail item muncul di Finance
-		Where("tenant_id = ? AND status = ?", tenantID, status)
-
-	if err := query.Count(&total).Error; err != nil {
+func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int, status string) ([]dto.ExpenseReportResponse, int64, error) {
+	// 1. Ambil data mentah dari repo
+	rows, total, err := repo.ListByStatus(tenantID, page, pageSize, status)
+	if err != nil {
 		return nil, 0, err
 	}
 
-	// Gunakan Find(&reports) setelah Preload lengkap
-	err := query.Order("updated_at desc").Offset(offset).Limit(pageSize).Find(&reports).Error
-	return reports, total, err
+	// 2. Transformasi ke DTO
+	var reportsDTO []dto.ExpenseReportResponse
+	for _, r := range rows {
+		reportsDTO = append(reportsDTO, ToExpenseReportResponse(r))
+	}
+
+	return reportsDTO, total, nil
 }

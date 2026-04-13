@@ -8,15 +8,17 @@ type ExpenseReportResponse struct {
 	TotalAmount int64             `json:"total_amount"`
 	Status      string            `json:"status"`
 	CreatedAt   time.Time         `json:"created_at"`
-	User        UserResponse      `json:"user"`     // ⬅️ TAMBAH
-	Approver    UserResponse      `json:"approver"` // Data manajer yang approve/reject
+	User        UserResponse      `json:"user"` // ⬅️ TAMBAH
+	Approver    *UserResponse     `json:"approver,omitempty"`
 	Receipts    []ReceiptResponse `json:"receipts"`
 }
 
 type UserResponse struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Role   string `json:"role,omitempty"`
+	Avatar string `json:"avatar,omitempty"`
 }
 
 type ReceiptResponse struct {

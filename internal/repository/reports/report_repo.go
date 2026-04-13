@@ -5,7 +5,13 @@ import (
 	"ocr-saas-backend/internal/models"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
+
+// Tambahkan ini di bawah import
+func selectMinimalUserInfo(db *gorm.DB) *gorm.DB {
+	return db.Select("id, name, email, role")
+}
 
 func ListMyReports(
 	tenantID, userID uuid.UUID, // Parameter tetap 5
@@ -35,8 +41,8 @@ func ListMyReports(
 	offset := (page - 1) * pageSize
 	err := db.
 		Preload("Receipts").
-		Preload("User").
-		Preload("Approver").
+		Preload("User", selectMinimalUserInfo).     // EDIT DI SINI
+		Preload("Approver", selectMinimalUserInfo). // EDIT DI SINI
 		Order("created_at DESC").
 		Limit(pageSize).
 		Offset(offset).
@@ -53,8 +59,8 @@ func GetByID(
 
 	err := configs.DB.
 		Preload("Receipts").
-		Preload("User").     // ✅ TAMBAHKAN INI (Untuk data pengaju)
-		Preload("Approver"). // ✅ TAMBAHKAN INI (Untuk data manajer/approver)
+		Preload("User", selectMinimalUserInfo).     // ✅ TAMBAHKAN INI (Untuk data pengaju)
+		Preload("Approver", selectMinimalUserInfo). // ✅ TAMBAHKAN INI (Untuk data manajer/approver)
 		Where("tenant_id = ? AND id = ?", tenantID, id).
 		First(&report).Error
 
@@ -147,6 +153,32 @@ func ListSubmitted(
 		Preload("User").
 		Preload("Receipts").
 		Order("created_at ASC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&rows).Error
+
+	return rows, total, err
+}
+
+func ListByStatus(
+	tenantID uuid.UUID,
+	page, pageSize int,
+	status string,
+) ([]models.ExpenseReport, int64, error) {
+	var rows []models.ExpenseReport
+	var total int64
+
+	db := configs.DB.Model(&models.ExpenseReport{}).
+		Where("tenant_id = ? AND status = ?", tenantID, status)
+
+	db.Count(&total)
+
+	offset := (page - 1) * pageSize
+	err := db.
+		Preload("User", selectMinimalUserInfo).     // Supaya langsing
+		Preload("Approver", selectMinimalUserInfo). // Supaya langsing
+		Preload("Receipts").
+		Order("updated_at DESC").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&rows).Error

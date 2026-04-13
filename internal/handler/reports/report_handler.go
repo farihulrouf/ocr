@@ -252,9 +252,15 @@ func GetReadyToPayReports(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 
-	// SAKTI: Jangan ambil dari Query Param! Langsung paksa "APPROVED"
-	// Ini menjamin data SUBMITTED tidak akan pernah bocor ke sini.
-	status := "APPROVED"
+	// AMBIL STATUS DARI QUERY (Ganti logic hardcode)
+	// Jika kosong, default ke "APPROVED"
+	status := c.Query("status", "APPROVED")
+
+	// VALIDASI: Pastikan Finance tidak bisa intip status "DRAFT" atau "SUBMITTED"
+	// Mereka hanya boleh lihat yang sudah APPROVED (siap bayar) atau PAID (sudah lunas)
+	if status != "APPROVED" && status != "PAID" && status != "REJECTED" {
+		status = "APPROVED" // Reset ke safe default jika aneh-aneh
+	}
 
 	data, total, err := svc.GetReadyToPayReports(tenantID, page, pageSize, status)
 
