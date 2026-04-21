@@ -146,7 +146,9 @@ func ApproveReport(tenantID, reportID, managerID uuid.UUID) error {
 	return configs.DB.Transaction(func(tx *gorm.DB) error {
 		// 0. Ambil data laporan dulu untuk tahu nominal pengeluarannya
 		var report models.ExpenseReport
-		if err := tx.Where("id = ? AND tenant_id = ?", reportID, tenantID).First(&report).Error; err != nil {
+		if err := tx.Select("total_amount").
+			Where("id = ? AND tenant_id = ?", reportID, tenantID).
+			First(&report).Error; err != nil {
 			return err
 		}
 
@@ -156,13 +158,12 @@ func ApproveReport(tenantID, reportID, managerID uuid.UUID) error {
 			return err // Jika budget tidak cukup, transaksi gagal (Rollback)
 		}
 
-		// 2. Update status laporan dan siapa yang approve
-		err := tx.Model(&models.ExpenseReport{}).
-			Where("id = ? AND tenant_id = ?", reportID, tenantID).
-			Updates(map[string]interface{}{
-				"status":         "APPROVED",
-				"approved_by_id": managerID,
-			}).Error
+		err := repo.UpdateReportStatus(
+			tenantID,
+			reportID,
+			"APPROVED",
+			&managerID, // <-- Kirim pointer managerID ke repo
+		)
 		if err != nil {
 			return err
 		}
