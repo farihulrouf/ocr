@@ -25,18 +25,12 @@ func SetupRoutes(app *fiber.App) {
 	v0 := app.Group("/v0/api")
 
 	// =============================
-	// PUBLIC AUTH ROUTES
+	// AUTH
 	// =============================
 	auth := v0.Group("/auth")
 	auth.Post("/login", handler.Login)
 	auth.Post("/refresh-token", handler.RefreshToken)
-	// auth.Post("/forgot-password", handler.ForgotPassword)
-	// auth.Post("/reset-password", handler.ResetPassword)
-	// auth.Post("/verify-email", handler.VerifyEmail)
 
-	// =============================
-	// AUTH PROTECTED
-	// =============================
 	authProtected := auth.Group("/", middleware.Protected())
 	authProtected.Get("/me", handler.GetProfile)
 	authProtected.Put("/profile", handler.UpdateProfile)
@@ -44,19 +38,22 @@ func SetupRoutes(app *fiber.App) {
 	authProtected.Post("/logout", handler.Logout)
 
 	// =============================
-	// TENANT PROTECTED
+	// TENANT
 	// =============================
 	tenant := v0.Group("/tenant", middleware.Protected())
-
 	tenant.Get("/info", tenants.GetTenantInfo)
 	tenant.Put("/info", tenants.UpdateTenantInfo)
 	tenant.Get("/settings", tenants.GetTenantSettings)
-
 	tenant.Get("/subscription", tenants.GetTenantSubscription)
 	tenant.Post("/subscription/upgrade", tenants.UpgradeSubscription)
-	//SuperAdminOnly
+
+	// =============================
+	// SYSTEM (ADMIN ONLY)
+	// =============================
 	system := v0.Group("/system", middleware.Protected(), middleware.SuperAdminOnly())
+
 	system.Get("/tenants", tenants.SystemListTenants)
+
 	system.Get("/departments", departments.ListDepartments)
 	system.Post("/departments", departments.CreateDepartment)
 	system.Get("/departments/:id", departments.GetDepartmentDetailHandler)
@@ -82,111 +79,93 @@ func SetupRoutes(app *fiber.App) {
 	system.Put("/payments/:id", payments.UpdatePayments)
 	system.Delete("/payments/:id", payments.DeletePayments)
 
-	//finance := api.Group("/finance", middleware.Auth())
-
-	//finance.Get("/categories", handler.ListCategories)
-	//finance.Post("/categories", middleware.RoleAdmin(), handler.CreateCategory)
-	//finance.Put("/categories/:id", middleware.RoleAdmin(), handler.UpdateCategory)
-	//finance.Delete("/categories/:id", middleware.RoleAdmin(), handler.DeleteCategory)
-
+	// =============================
+	// EMPLOYEE
+	// =============================
 	emprole := v0.Group("/emp", middleware.Protected(), middleware.EmployeeOnly())
-	emprole.Get("/receipt", receipts.GetMyReceipts)
 
+	emprole.Get("/receipt", receipts.GetMyReceipts)
 	emprole.Get("/receipt/:id", receipts.GetMyReceiptDetail)
 	emprole.Post("/receipt/upload", ocr.UploadReceipt)
 	emprole.Put("/receipt/:id", receipts.UpdateReceipt)
-	//emprole.Put("/receipt/:id", handler.ConfirmReceipt)
 	emprole.Delete("/receipt/:id", receipts.DeleteReceipt)
+
 	emprole.Post("/receipt/:id/items", receipts.AddReceiptItem)
 	emprole.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
-	// --- TAMBAHKAN BARIS INI ---
-	// Endpoint: GET /v0/api/emp/receipt/:id/status
 	emprole.Get("/receipt/:id/status", receipts.GetReceiptStatusHandler)
-	//api.Post("/ocr/receipt", handler.UploadReceipt)
 
-	// =============================
-	// EMPLOYEE - EXPENSE REPORT
-	// =============================
-	//empReport := emprole.Group("/reports")
-	emprole.Get("/reports/", reports.GetMyReports)
-	emprole.Post("/reports/", reports.CreateReport)
+	// REPORTS (EMPLOYEE)
+	emprole.Get("/reports", reports.GetMyReports)
+	emprole.Post("/reports", reports.CreateReport)
 	emprole.Put("/reports/:id", reports.UpdateReport)
 	emprole.Post("/reports/:id/submit", reports.SubmitReport)
-	// --- TAMBAHKAN INI UNTUK HAPUS STRUK DARI LAPORAN ---
 	emprole.Delete("/reports/:id/receipts/:receiptId", reports.RemoveReceiptFromReport)
 	emprole.Post("/reports/:id/receipts", reports.AddReceiptsToReport)
 	emprole.Get("/reports/:id", reports.GetMyReportDetail)
+
 	emprole.Get("/dashboard", dashboard.GetEmployeeDashboard)
-	// OCR Upload
 
-	//emprole.Post("/receipt/upload", ocr.UploadOCR)
-
-	//app.Post("/v0/api/receipts/upload", receiptHandler.UploadOCR)
-
-	//Get("/receipts", handler.GetMyReceipts)
 	// =============================
-	// USAGE STATS (ini yang kamu buat)
+	// MANAGER
 	// =============================
-	//tenant.Get("/usage", handler.GetUsageStats) // GET /v0/api/tenant/usage
 	manager := v0.Group("/manager", middleware.Protected(), middleware.TenantAdminOnly())
+
 	manager.Get("/receipt", receipts.GetAllReceipts)
 	manager.Get("/receipt/:id", receipts.GetReceiptDetail)
 	manager.Put("/receipt/:id", receipts.ConfirmReceipt)
-	//manager.Delete("/receipt/:id", handler.DeleteReceipt)
+
 	manager.Post("/receipt/bulk/delete", receipts.BulkDeleteReceipts)
 	manager.Post("/receipt/bulk/restore", receipts.BulkRestoreReceipts)
 	manager.Post("/receipt/bulk/approve", receipts.BulkApproveReceipts)
 	manager.Post("/receipt/bulk/reject", receipts.BulkRejectReceipts)
 	manager.Post("/receipt/bulk/update-category", receipts.BulkUpdateReceiptCategory)
+
 	manager.Post("/receipt/:id/items", receipts.AddReceiptItem)
 	manager.Put("/receipt/items/:itemId", receipts.UpdateReceiptItem)
 	manager.Delete("/receipt/items/:itemId", receipts.DeleteReceiptItem)
-	manager.Get("/dashboard", dashboard.GetManagerDashboard)
-	//manager.Get("/reports/:id", reports.GetMyReportDetail)
-	// --- BUDGET MANAGEMENT (FITUR BARU) ---
-	manager.Post("/budget", budgets.HandleSetBudget)     // Set/Update budget
-	manager.Get("/budget/stats", budgets.GetBudgetStats) // Data grafik budget vs spent
 
-	// =============================
-	// MANAGER - REPORT APPROVAL
-	// =============================
+	manager.Get("/dashboard", dashboard.GetManagerDashboard)
+
+	// REPORT APPROVAL
 	manager.Get("/reports", reports.GetPendingReports)
 	manager.Post("/reports/:id/approve", reports.ApproveReport)
 	manager.Post("/reports/:id/reject", reports.RejectReport)
-	manager.Post("/reports/export", reports.HandleExport)
-	manager.Get("/reports/export/logs", reports.HandleGetExportLogs) // <-- Daftarkan ini!
-	// =============================
-	// MANAGER - REPORT APPROVAL
-	// =============================
-	//managerReport := manager.Group("/reports")
-	//manager.Get("/reports/", handler.GetPendingReports)
-	//managerReport.Post("/:id/approve", handler.ApproveReport)
-	//managerReport.Post("/:id/reject", handler.RejectReport)
 
-	// ==========================================
-	// FINANCE - DISBURSEMENT & PAYMENTS
-	// ==========================================
-	// Menggunakan middleware Protected dan FinanceOnly (atau Role check yang Mas pakai)
+	manager.Post("/reports/export", reports.HandleExport)
+	manager.Get("/reports/export/logs", reports.HandleGetExportLogs)
+
+	// BUDGET
+	manager.Post("/budget", budgets.HandleSetBudget)
+	manager.Get("/budget/stats", budgets.GetBudgetStats)
+
+	// =============================
+	// SHARED REPORTS (MANAGER + FINANCE + ADMIN)
+	// =============================
+	reportsShared := v0.Group("/reports", middleware.Protected(), middleware.TenantAdminOnly())
+
+	// ⚠️ STATIC HARUS DULU
+	reportsShared.Get("/ready", reports.GetReadyToPayReports)
+
+	// BARU DYNAMIC
+	reportsShared.Get("/:id", reports.GetMyReportDetail)
+
+	// =============================
+	// FINANCE
+	// =============================
 	finance := v0.Group("/finance", middleware.Protected(), middleware.FinanceOnly())
 
-	// Ambil list report yang statusnya 'APPROVED' (Siap dibayar)
-	finance.Get("/reports/ready", reports.GetReadyToPayReports)
-	finance.Get("/reports/:id", reports.GetMyReportDetail)
 	finance.Get("/dashboard", dashboard.GetAdminFinanceDashboard)
-	// Eksekusi pembayaran (Update status ke PAID & buat record disbursement)
-	// Handler: disbursement.ExecutePayment
+
+	// PAYMENT
 	finance.Post("/pay", disbursement.ExecutePayment)
 
+	// VENDORS
 	finance.Get("/vendors", vendors.GetAllVendorsHandler)
 	finance.Post("/vendors", vendors.CreateVendor)
 	finance.Put("/vendors/:id", vendors.UpdateVendor)
 	finance.Delete("/vendors/:id", vendors.DeleteVendor)
+
+	// BUDGET
 	finance.Get("/budget-summary", budgets.GetFinanceSummary)
-	finance.Get("/budget", budgets.ListBudgets) // List budget tenant
-
-	finance.Get("/reports/ready", reports.GetReadyToPayReports)
-
-	// Detail report (Pakai handler yang sama, tinggal passing role)
-	finance.Get("/reports/:id", reports.GetMyReportDetail)
-
+	finance.Get("/budget", budgets.ListBudgets)
 }

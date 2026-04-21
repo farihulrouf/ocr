@@ -40,13 +40,13 @@ func FinanceOnly() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role := c.Locals("role")
 
-		// Finance adalah power user, Admin biasanya juga diizinkan
-		if role == "FINANCE" || role == "ADMIN" {
+		// Tambahin MANAGER di sini
+		if role == "FINANCE" || role == "ADMIN" || role == "MANAGER" {
 			return c.Next()
 		}
 
 		return c.Status(403).JSON(fiber.Map{
-			"error": "Forbidden: Finance access required",
+			"error": "Forbidden: Finance/Manager access required",
 		})
 	}
 }

@@ -241,33 +241,84 @@ func RemoveReceiptFromReport(c *fiber.Ctx) error {
 
 // Handler: GET /v0/api/finance/reports/ready
 func GetReadyToPayReports(c *fiber.Ctx) error {
-	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
-	role := c.Locals("role").(string)
 
-	// Security check
-	if role != "FINANCE" && role != "ADMIN" {
-		return c.Status(403).JSON(fiber.Map{"message": "Akses ditolak"})
+	// =============================
+	// PARSE TENANT ID (SAFE)
+	// =============================
+	tenantIDStr, ok := c.Locals("tenant_id").(string)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{
+			"message": "Invalid tenant",
+		})
 	}
 
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "Invalid tenant_id format",
+		})
+	}
 
-	// AMBIL STATUS DARI QUERY (Ganti logic hardcode)
-	// Jika kosong, default ke "APPROVED"
+	// =============================
+	// ROLE
+	// =============================
+	role, ok := c.Locals("role").(string)
+	if !ok {
+		return c.Status(401).JSON(fiber.Map{
+			"message": "Unauthorized",
+		})
+	}
+
+	// =============================
+	// ROLE ACCESS CONTROL
+	// =============================
+	if role != "FINANCE" && role != "ADMIN" && role != "MANAGER" {
+		return c.Status(403).JSON(fiber.Map{
+			"message": "Akses ditolak",
+		})
+	}
+
+	// =============================
+	// PAGINATION (SAFE PARSE)
+	// =============================
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(c.Query("page_size", "10"))
+	if err != nil || pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	// =============================
+	// STATUS FILTER
+	// =============================
 	status := c.Query("status", "APPROVED")
 
-	// VALIDASI: Pastikan Finance tidak bisa intip status "DRAFT" atau "SUBMITTED"
-	// Mereka hanya boleh lihat yang sudah APPROVED (siap bayar) atau PAID (sudah lunas)
-	if status != "APPROVED" && status != "PAID" && status != "REJECTED" {
-		status = "APPROVED" // Reset ke safe default jika aneh-aneh
+	// 🔥 RULE KHUSUS FINANCE
+	if role == "FINANCE" {
+		if status != "APPROVED" && status != "PAID" && status != "REJECTED" {
+			status = "APPROVED"
+		}
 	}
 
+	// 🔥 OPTIONAL: MANAGER bebas lihat semua
+	// kalau mau batasi juga, tinggal tambahin rule di sini
+
+	// =============================
+	// SERVICE CALL
+	// =============================
 	data, total, err := svc.GetReadyToPayReports(tenantID, page, pageSize, status)
-
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
+	// =============================
+	// RESPONSE
+	// =============================
 	return c.JSON(fiber.Map{
 		"status": "success",
 		"data":   data,
@@ -275,6 +326,8 @@ func GetReadyToPayReports(c *fiber.Ctx) error {
 			"page":      page,
 			"page_size": pageSize,
 			"total":     total,
+			"status":    status,
+			"user_role": role,
 		},
 	})
 }
