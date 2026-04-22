@@ -331,3 +331,151 @@ func GetReadyToPayReports(c *fiber.Ctx) error {
 		},
 	})
 }
+
+func BulkApproveReports(c *fiber.Ctx) error {
+	// =============================
+	// AUTH CONTEXT
+	// =============================
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	managerID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string)
+
+	// =============================
+	// ROLE GUARD
+	// =============================
+	if role != "MANAGER" && role != "ADMIN" {
+		return c.Status(403).JSON(fiber.Map{
+			"message": "Akses ditolak",
+		})
+	}
+
+	// =============================
+	// REQUEST BODY
+	// =============================
+	var body struct {
+		ReportIDs []string `json:"report_ids"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "invalid body",
+		})
+	}
+
+	if len(body.ReportIDs) == 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "report_ids is required",
+		})
+	}
+
+	// 🔥 LIMIT (best practice)
+	if len(body.ReportIDs) > 50 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "max 50 reports per request",
+		})
+	}
+
+	// =============================
+	// PARSE UUIDS
+	// =============================
+	var reportIDs []uuid.UUID
+	for _, idStr := range body.ReportIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"message": "invalid report id: " + idStr,
+			})
+		}
+		reportIDs = append(reportIDs, id)
+	}
+
+	// =============================
+	// SERVICE CALL
+	// =============================
+	if err := svc.BulkApproveReports(tenantID, reportIDs, managerID); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	// =============================
+	// RESPONSE
+	// =============================
+	return c.JSON(fiber.Map{
+		"status":        "success",
+		"approved_by":   managerID,
+		"total_reports": len(reportIDs),
+	})
+}
+
+func BulkRejectReports(c *fiber.Ctx) error {
+	// =============================
+	// AUTH
+	// =============================
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	managerID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string)
+
+	// =============================
+	// ROLE GUARD
+	// =============================
+	if role != "MANAGER" && role != "ADMIN" {
+		return c.Status(403).JSON(fiber.Map{
+			"message": "Akses ditolak",
+		})
+	}
+
+	// =============================
+	// BODY
+	// =============================
+	var body struct {
+		ReportIDs []string `json:"report_ids"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "invalid body",
+		})
+	}
+
+	if len(body.ReportIDs) == 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "report_ids is required",
+		})
+	}
+
+	if len(body.ReportIDs) > 50 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "max 50 reports per request",
+		})
+	}
+
+	// =============================
+	// PARSE UUID
+	// =============================
+	var reportIDs []uuid.UUID
+	for _, idStr := range body.ReportIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"message": "invalid report id: " + idStr,
+			})
+		}
+		reportIDs = append(reportIDs, id)
+	}
+
+	// =============================
+	// SERVICE
+	// =============================
+	if err := svc.BulkRejectReports(tenantID, reportIDs, managerID); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"status":        "success",
+		"rejected_by":   managerID,
+		"total_reports": len(reportIDs),
+	})
+}

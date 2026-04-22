@@ -2,6 +2,8 @@ package reports
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/dto"
 	"ocr-saas-backend/internal/models"
@@ -327,4 +329,220 @@ func GetReadyToPayReports(tenantID uuid.UUID, page, pageSize int, status string)
 	}
 
 	return reportsDTO, total, nil
+}
+
+func BulkApproveReports(
+	tenantID uuid.UUID,
+	reportIDs []uuid.UUID,
+	managerID uuid.UUID,
+) error {
+
+	if len(reportIDs) == 0 {
+		return errors.New("no report ids provided")
+	}
+
+	// 🔥 VALIDASI UUID (anti uuid.Nil)
+	for _, id := range reportIDs {
+		if id == uuid.Nil {
+			return errors.New("invalid report id detected (uuid.Nil)")
+		}
+	}
+
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
+
+		// 🔍 DEBUG LOG
+		log.Println("=== BULK APPROVE DEBUG ===")
+		log.Println("TenantID:", tenantID)
+		log.Println("ManagerID:", managerID)
+		log.Println("ReportIDs:", reportIDs)
+
+		// 1️⃣ Ambil semua report TANPA FILTER dulu (biar tahu mana yang ada)
+		var reports []models.ExpenseReport
+		if err := tx.
+			Where("id IN ?", reportIDs).
+			Find(&reports).Error; err != nil {
+			return err
+		}
+
+		log.Println("Found Reports:", len(reports))
+
+		// ❌ Kalau tidak ada sama sekali
+		if len(reports) == 0 {
+			return errors.New("no reports found for given IDs")
+		}
+
+		// 🔎 Validasi satu per satu (lebih jelas dari len mismatch)
+		var validReports []models.ExpenseReport
+		var invalidIDs []uuid.UUID
+
+		for _, r := range reports {
+
+			// cek tenant
+			if r.TenantID != tenantID {
+				log.Println("Tenant mismatch:", r.ID)
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			// cek status
+			if r.Status != "SUBMITTED" {
+				log.Println("Invalid status:", r.ID, r.Status)
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			validReports = append(validReports, r)
+		}
+
+		// ❌ kalau ada yang invalid → kasih error jelas
+		if len(invalidIDs) > 0 {
+			return fmt.Errorf("some reports invalid (tenant/status): %v", invalidIDs)
+		}
+
+		// ❌ kalau jumlah tidak match (ID tidak ditemukan)
+		if len(validReports) != len(reportIDs) {
+			return fmt.Errorf(
+				"some report_ids not found (expected %d, got %d)",
+				len(reportIDs),
+				len(validReports),
+			)
+		}
+
+		// 2️⃣ Hitung total budget
+		var totalToConsume int64
+		for _, r := range validReports {
+			totalToConsume += r.TotalAmount
+		}
+
+		log.Println("Total to consume:", totalToConsume)
+
+		// 3️⃣ Consume budget SEKALI
+		if err := budgets.ConsumeBudgetLogic(tx, tenantID, totalToConsume); err != nil {
+			return err
+		}
+
+		// 4️⃣ Update semua report
+		if err := tx.Model(&models.ExpenseReport{}).
+			Where("id IN ? AND tenant_id = ?", reportIDs, tenantID).
+			Updates(map[string]interface{}{
+				"status":         "APPROVED",
+				"approved_by_id": managerID,
+			}).Error; err != nil {
+			return err
+		}
+
+		// 5️⃣ Insert logs
+		for _, r := range validReports {
+			logEntry := models.ApprovalLog{
+				ExpenseReportID: &r.ID,
+				UserID:          managerID,
+				Action:          "APPROVE",
+				Comment:         "Bulk approve by manager",
+			}
+			if err := tx.Create(&logEntry).Error; err != nil {
+				return err
+			}
+		}
+
+		log.Println("=== BULK APPROVE SUCCESS ===")
+		return nil
+	})
+}
+
+func BulkRejectReports(
+	tenantID uuid.UUID,
+	reportIDs []uuid.UUID,
+	managerID uuid.UUID,
+) error {
+
+	if len(reportIDs) == 0 {
+		return errors.New("no report ids provided")
+	}
+
+	// 🔥 VALIDASI UUID
+	for _, id := range reportIDs {
+		if id == uuid.Nil {
+			return errors.New("invalid report id detected (uuid.Nil)")
+		}
+	}
+
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
+
+		log.Println("=== BULK REJECT DEBUG ===")
+		log.Println("TenantID:", tenantID)
+		log.Println("ManagerID:", managerID)
+		log.Println("ReportIDs:", reportIDs)
+
+		// 1️⃣ Ambil semua report
+		var reports []models.ExpenseReport
+		if err := tx.
+			Where("id IN ?", reportIDs).
+			Find(&reports).Error; err != nil {
+			return err
+		}
+
+		log.Println("Found Reports:", len(reports))
+
+		if len(reports) == 0 {
+			return errors.New("no reports found for given IDs")
+		}
+
+		var validReports []models.ExpenseReport
+		var invalidIDs []uuid.UUID
+
+		for _, r := range reports {
+
+			if r.TenantID != tenantID {
+				log.Println("Tenant mismatch:", r.ID)
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			if r.Status != "SUBMITTED" {
+				log.Println("Invalid status:", r.ID, r.Status)
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			validReports = append(validReports, r)
+		}
+
+		if len(invalidIDs) > 0 {
+			return fmt.Errorf("some reports invalid (tenant/status): %v", invalidIDs)
+		}
+
+		if len(validReports) != len(reportIDs) {
+			return fmt.Errorf(
+				"some report_ids not found (expected %d, got %d)",
+				len(reportIDs),
+				len(validReports),
+			)
+		}
+
+		// 2️⃣ Update bulk
+		if err := tx.Model(&models.ExpenseReport{}).
+			Where("id IN ? AND tenant_id = ?", reportIDs, tenantID).
+			Updates(map[string]interface{}{
+				"status":         "REJECTED",
+				"approved_by_id": managerID,
+			}).Error; err != nil {
+			return err
+		}
+
+		// 3️⃣ Logs
+		for _, r := range validReports {
+			logEntry := models.ApprovalLog{
+				ExpenseReportID: &r.ID,
+				UserID:          managerID,
+				Action:          "REJECT",
+				Comment:         "Bulk reject by manager",
+			}
+			if err := tx.Create(&logEntry).Error; err != nil {
+				return err
+			}
+		}
+
+		log.Println("=== BULK REJECT SUCCESS ===")
+		return nil
+	})
 }

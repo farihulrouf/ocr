@@ -110,6 +110,9 @@ func SetupRoutes(app *fiber.App) {
 	// =============================
 	manager := v0.Group("/manager", middleware.Protected(), middleware.TenantAdminOnly())
 
+	// =============================
+	// RECEIPTS (tetap)
+	// =============================
 	manager.Get("/receipt", receipts.GetAllReceipts)
 	manager.Get("/receipt/:id", receipts.GetReceiptDetail)
 	manager.Put("/receipt/:id", receipts.ConfirmReceipt)
@@ -126,18 +129,30 @@ func SetupRoutes(app *fiber.App) {
 
 	manager.Get("/dashboard", dashboard.GetManagerDashboard)
 
-	// REPORT APPROVAL
+	// =============================
+	// REPORTS (🔥 FIXED ORDER)
+	// =============================
+
+	// LIST
 	manager.Get("/reports", reports.GetPendingReports)
+
+	// 🔥 BULK ACTIONS HARUS DI ATAS
+	manager.Post("/reports/bulk/approve", reports.BulkApproveReports)
+	manager.Post("/reports/bulk/reject", reports.BulkRejectReports)
+
+	// 🔥 SINGLE ACTIONS DI BAWAH
 	manager.Post("/reports/:id/approve", reports.ApproveReport)
 	manager.Post("/reports/:id/reject", reports.RejectReport)
 
+	// EXPORT
 	manager.Post("/reports/export", reports.HandleExport)
 	manager.Get("/reports/export/logs", reports.HandleGetExportLogs)
 
+	// =============================
 	// BUDGET
+	// =============================
 	manager.Post("/budget", budgets.HandleSetBudget)
 	manager.Get("/budget/stats", budgets.GetBudgetStats)
-
 	// =============================
 	// SHARED REPORTS (MANAGER + FINANCE + ADMIN)
 	// =============================
