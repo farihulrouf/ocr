@@ -100,13 +100,31 @@ func GetWeeklyOutflow(tenantID uuid.UUID) ([]dto.MonthlyChart, error) {
 	var stats []dto.MonthlyChart
 
 	err := configs.DB.Raw(`
+		WITH weeks AS (
+			SELECT 'Week 1' AS week UNION ALL
+			SELECT 'Week 2' UNION ALL
+			SELECT 'Week 3' UNION ALL
+			SELECT 'Week 4'
+		),
+		data AS (
+			SELECT
+				CASE
+					WHEN EXTRACT(DAY FROM paid_at) BETWEEN 1 AND 7 THEN 'Week 1'
+					WHEN EXTRACT(DAY FROM paid_at) BETWEEN 8 AND 14 THEN 'Week 2'
+					WHEN EXTRACT(DAY FROM paid_at) BETWEEN 15 AND 21 THEN 'Week 3'
+					ELSE 'Week 4'
+				END AS week,
+				COALESCE(SUM(amount), 0) AS amount
+			FROM disbursements
+			WHERE tenant_id = ? AND paid_at IS NOT NULL
+			GROUP BY week
+		)
 		SELECT 
-			'Week ' || TO_CHAR(transaction_date, 'W') as month,
-			SUM(total_amount) as amount
-		FROM receipts
-		WHERE tenant_id = ? AND status = 'PAID' AND transaction_date > NOW() - INTERVAL '3 months'
-		GROUP BY month
-		ORDER BY month ASC
+			w.week AS month,
+			COALESCE(d.amount, 0) AS amount
+		FROM weeks w
+		LEFT JOIN data d ON w.week = d.week
+		ORDER BY w.week
 	`, tenantID).Scan(&stats).Error
 
 	return stats, err

@@ -11,23 +11,51 @@ import (
 
 func GetAdminFinanceDashboardData(tenantID uuid.UUID) (*dto.FinanceDashboardStats, error) {
 	now := time.Now()
+
+	// periode bulan berjalan (dipakai tax)
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Second)
 
-	// Panggil menggunakan alias 'repo' agar tidak bentrok dengan package name service ini
-	readyToPay, _ := repo.GetTotalReadyToPay(tenantID)
-	taxLiability, _ := repo.GetEstTaxLiability(tenantID, startOfMonth, endOfMonth)
-	processedWeek, _ := repo.GetProcessedThisWeek(tenantID)
-	overdueCnt, _ := repo.GetOverdueCount(tenantID)
+	// =========================
+	// CORE FINANCE METRICS
+	// =========================
+	readyToPay, err := repo.GetTotalReadyToPay(tenantID)
+	if err != nil {
+		return nil, err
+	}
 
+	taxLiability, err := repo.GetEstTaxLiability(tenantID, startOfMonth, endOfMonth)
+	if err != nil {
+		return nil, err
+	}
+
+	processedTotal, err := repo.GetProcessedThisWeek(tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	overdueCnt, err := repo.GetOverdueCount(tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// =========================
+	// READY TO DISBURSE LIST
+	// =========================
 	payList, err := repo.GetReadyToDisburseList(tenantID, 10)
 	if err != nil {
 		return nil, err
 	}
 
-	chartData, _ := repo.GetWeeklyOutflow(tenantID)
+	// =========================
+	// CASH OUTFLOW (WEEKLY)
+	// =========================
+	chartData, err := repo.GetWeeklyOutflow(tenantID)
+	if err != nil {
+		return nil, err
+	}
 
-	// Fallback Chart
+	// fallback kalau kosong
 	if len(chartData) == 0 {
 		chartData = []dto.MonthlyChart{
 			{Month: "Week 1", Amount: 0},
@@ -37,13 +65,17 @@ func GetAdminFinanceDashboardData(tenantID uuid.UUID) (*dto.FinanceDashboardStat
 		}
 	}
 
+	// =========================
+	// RESPONSE BUILD
+	// =========================
 	response := &dto.FinanceDashboardStats{
 		TotalReadyToPay:   readyToPay,
 		OverdueCount:      overdueCnt,
 		EstimatedTax:      taxLiability,
-		ProcessedThisWeek: processedWeek,
+		ProcessedThisWeek: processedTotal,
 		CashOutflow:       chartData,
 		ReadyToDisburse:   payList,
+
 		SyncStatus: dto.ERPSyncStatus{
 			IsConnected:   true,
 			Provider:      "Xero",
