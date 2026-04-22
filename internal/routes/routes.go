@@ -183,4 +183,6 @@ func SetupRoutes(app *fiber.App) {
 	// BUDGET
 	finance.Get("/budget-summary", budgets.GetFinanceSummary)
 	finance.Get("/budget", budgets.ListBudgets)
+	finance.Post("/reports/bulk/pay", reports.BulkPayReports)
+	finance.Post("/reports/bulk/fail", reports.BulkFailPaymentReports)
 }

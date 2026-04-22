@@ -270,8 +270,9 @@ func GetReadyToPayReports(c *fiber.Ctx) error {
 	}
 
 	// =============================
-	// ROLE ACCESS CONTROL
+	// ROLE ACCESS CONTROL (STRICT)
 	// =============================
+	// ROLE ACCESS CONTROL (FIX)
 	if role != "FINANCE" && role != "ADMIN" && role != "MANAGER" {
 		return c.Status(403).JSON(fiber.Map{
 			"message": "Akses ditolak",
@@ -476,6 +477,156 @@ func BulkRejectReports(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status":        "success",
 		"rejected_by":   managerID,
+		"total_reports": len(reportIDs),
+	})
+}
+
+func BulkPayReports(c *fiber.Ctx) error {
+	// =============================
+	// AUTH
+	// =============================
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	financeID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string)
+
+	// =============================
+	// ROLE GUARD
+	// =============================
+	if role != "FINANCE" && role != "ADMIN" {
+		return c.Status(403).JSON(fiber.Map{
+			"message": "Akses ditolak",
+		})
+	}
+
+	// =============================
+	// BODY
+	// =============================
+	var body struct {
+		ReportIDs []string `json:"report_ids"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "invalid body",
+		})
+	}
+
+	if len(body.ReportIDs) == 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "report_ids is required",
+		})
+	}
+
+	if len(body.ReportIDs) > 50 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "max 50 reports per request",
+		})
+	}
+
+	// =============================
+	// PARSE UUID
+	// =============================
+	var reportIDs []uuid.UUID
+	for _, idStr := range body.ReportIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"message": "invalid report id: " + idStr,
+			})
+		}
+		reportIDs = append(reportIDs, id)
+	}
+
+	// =============================
+	// SERVICE
+	// =============================
+	if err := svc.BulkPayReports(tenantID, reportIDs, financeID); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	// =============================
+	// RESPONSE
+	// =============================
+	return c.JSON(fiber.Map{
+		"status":        "success",
+		"paid_by":       financeID,
+		"total_reports": len(reportIDs),
+	})
+}
+
+func BulkFailPaymentReports(c *fiber.Ctx) error {
+	// =============================
+	// AUTH
+	// =============================
+	tenantID := uuid.MustParse(c.Locals("tenant_id").(string))
+	financeID := uuid.MustParse(c.Locals("user_id").(string))
+	role := c.Locals("role").(string)
+
+	// =============================
+	// ROLE GUARD
+	// =============================
+	if role != "FINANCE" && role != "ADMIN" {
+		return c.Status(403).JSON(fiber.Map{
+			"message": "Akses ditolak",
+		})
+	}
+
+	// =============================
+	// BODY
+	// =============================
+	var body struct {
+		ReportIDs []string `json:"report_ids"`
+	}
+
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "invalid body",
+		})
+	}
+
+	if len(body.ReportIDs) == 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "report_ids is required",
+		})
+	}
+
+	if len(body.ReportIDs) > 50 {
+		return c.Status(400).JSON(fiber.Map{
+			"message": "max 50 reports per request",
+		})
+	}
+
+	// =============================
+	// PARSE UUID
+	// =============================
+	var reportIDs []uuid.UUID
+	for _, idStr := range body.ReportIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"message": "invalid report id: " + idStr,
+			})
+		}
+		reportIDs = append(reportIDs, id)
+	}
+
+	// =============================
+	// SERVICE
+	// =============================
+	if err := svc.BulkFailPaymentReports(tenantID, reportIDs, financeID); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
+	// =============================
+	// RESPONSE
+	// =============================
+	return c.JSON(fiber.Map{
+		"status":        "success",
+		"failed_by":     financeID,
 		"total_reports": len(reportIDs),
 	})
 }

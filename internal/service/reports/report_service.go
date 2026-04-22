@@ -9,6 +9,7 @@ import (
 	"ocr-saas-backend/internal/models"
 	repo "ocr-saas-backend/internal/repository/reports"
 	"ocr-saas-backend/internal/service/budgets"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -543,6 +544,175 @@ func BulkRejectReports(
 		}
 
 		log.Println("=== BULK REJECT SUCCESS ===")
+		return nil
+	})
+}
+
+func BulkPayReports(
+	tenantID uuid.UUID,
+	reportIDs []uuid.UUID,
+	financeID uuid.UUID,
+) error {
+
+	if len(reportIDs) == 0 {
+		return errors.New("no report ids provided")
+	}
+
+	for _, id := range reportIDs {
+		if id == uuid.Nil {
+			return errors.New("invalid report id detected")
+		}
+	}
+
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
+
+		log.Println("=== BULK PAY DEBUG ===")
+		log.Println("TenantID:", tenantID)
+		log.Println("FinanceID:", financeID)
+		log.Println("ReportIDs:", reportIDs)
+
+		// 1️⃣ ambil data
+		var reports []models.ExpenseReport
+		if err := tx.
+			Where("id IN ?", reportIDs).
+			Find(&reports).Error; err != nil {
+			return err
+		}
+
+		if len(reports) == 0 {
+			return errors.New("no reports found")
+		}
+
+		var validReports []models.ExpenseReport
+		var invalidIDs []uuid.UUID
+
+		for _, r := range reports {
+
+			if r.TenantID != tenantID {
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			if r.Status != "APPROVED" {
+				log.Println("invalid status:", r.ID, r.Status)
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			validReports = append(validReports, r)
+		}
+
+		if len(invalidIDs) > 0 {
+			return fmt.Errorf("some reports invalid (tenant/status): %v", invalidIDs)
+		}
+
+		// 2️⃣ UPDATE STATUS DOANG (NO paid_by_id)
+		if err := tx.Model(&models.ExpenseReport{}).
+			Where("id IN ? AND tenant_id = ?", reportIDs, tenantID).
+			Update("status", "PAID").Error; err != nil {
+			return err
+		}
+
+		// 3️⃣ INSERT DISBURSEMENT (INI YANG BENAR)
+		for _, r := range validReports {
+
+			disbursement := models.Disbursement{
+				TenantID:        tenantID,
+				ExpenseReportID: &r.ID,
+				PayerID:         financeID,
+				Amount:          r.TotalAmount,
+				ReferenceNumber: fmt.Sprintf("PAY-%s", r.ID.String()[:8]),
+				PaidAt:          time.Now(),
+			}
+
+			if err := tx.Create(&disbursement).Error; err != nil {
+				return err
+			}
+		}
+
+		// 4️⃣ LOG
+		for _, r := range validReports {
+			logEntry := models.ApprovalLog{
+				ExpenseReportID: &r.ID,
+				UserID:          financeID,
+				Action:          "PAY",
+				Comment:         "Bulk payment by finance",
+			}
+			if err := tx.Create(&logEntry).Error; err != nil {
+				return err
+			}
+		}
+
+		log.Println("=== BULK PAY SUCCESS ===")
+		return nil
+	})
+}
+
+func BulkFailPaymentReports(
+	tenantID uuid.UUID,
+	reportIDs []uuid.UUID,
+	financeID uuid.UUID,
+) error {
+
+	if len(reportIDs) == 0 {
+		return errors.New("no report ids provided")
+	}
+
+	return configs.DB.Transaction(func(tx *gorm.DB) error {
+
+		var reports []models.ExpenseReport
+		if err := tx.
+			Where("id IN ?", reportIDs).
+			Find(&reports).Error; err != nil {
+			return err
+		}
+
+		if len(reports) == 0 {
+			return errors.New("no reports found")
+		}
+
+		var validReports []models.ExpenseReport
+		var invalidIDs []uuid.UUID
+
+		for _, r := range reports {
+
+			if r.TenantID != tenantID {
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			if r.Status != "APPROVED" {
+				invalidIDs = append(invalidIDs, r.ID)
+				continue
+			}
+
+			validReports = append(validReports, r)
+		}
+
+		if len(invalidIDs) > 0 {
+			return fmt.Errorf("some reports invalid: %v", invalidIDs)
+		}
+
+		// UPDATE STATUS
+		if err := tx.Model(&models.ExpenseReport{}).
+			Where("id IN ? AND tenant_id = ?", reportIDs, tenantID).
+			Update("status", "PAYMENT_FAILED").Error; err != nil {
+			return err
+		}
+
+		// LOG
+		for _, r := range validReports {
+			logEntry := models.ApprovalLog{
+				ExpenseReportID: &r.ID,
+				UserID:          financeID,
+				Action:          "PAYMENT_FAILED",
+				Comment:         "Payment failed by finance",
+			}
+			if err := tx.Create(&logEntry).Error; err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 }
