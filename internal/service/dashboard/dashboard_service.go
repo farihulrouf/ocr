@@ -44,16 +44,18 @@ func GetEmployeeDashboardData(tenantID, userID uuid.UUID) (*dto.DashboardStats, 
 	}
 
 	// 5. Fetch History (Last 4 Months Chart)
+	// 5. Fetch History (Last 4 Months Chart)
 	var history []dto.MonthlyChart
 	for i := 3; i >= 0; i-- {
 		t := now.AddDate(0, -i, 0)
-		start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
 
-		// Ambil data pengeluaran per bulan
-		amount, _ := dashboard.GetTotalExpense(tenantID, userID, start)
+		start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+		end := start.AddDate(0, 1, 0).Add(-time.Second)
+
+		// ✅ PAKAI RANGE
+		amount, _ := dashboard.GetTotalExpenseByRange(tenantID, userID, start, end)
 
 		history = append(history, dto.MonthlyChart{
-			// Format "1月", "2月" dst untuk UI Jepang
 			Month:  t.Format("1月"),
 			Amount: amount,
 		})

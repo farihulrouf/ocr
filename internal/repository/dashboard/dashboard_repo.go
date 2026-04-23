@@ -56,3 +56,16 @@ func GetCategoryStats(tenantID uuid.UUID) (map[string]int64, error) {
 
 	return stats, nil
 }
+
+func GetTotalExpenseByRange(tenantID, userID uuid.UUID, start, end time.Time) (int64, error) {
+	var total int64
+
+	err := configs.DB.
+		Table("receipts").
+		Where("tenant_id = ? AND user_id = ? AND transaction_date BETWEEN ? AND ?",
+			tenantID, userID, start, end).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&total).Error
+
+	return total, err
+}
