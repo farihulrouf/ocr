@@ -4,8 +4,11 @@ import (
 	"ocr-saas-backend/internal/service"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
+
+var validate = validator.New()
 
 func Login(c *fiber.Ctx) error {
 	type LoginRequest struct {
@@ -16,6 +19,11 @@ func Login(c *fiber.Ctx) error {
 	var req LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"status": "error", "message": "Format request salah"})
+	}
+
+	// 2. VALIDASI DI SINI (bukan service)
+	if err := validate.Struct(req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	// Panggil service
