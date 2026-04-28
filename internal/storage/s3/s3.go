@@ -3,8 +3,10 @@ package s3
 import (
 	"context"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,19 +15,37 @@ import (
 )
 
 type S3Storage struct {
-	client *s3.Client
-	bucket string
+	client        *s3.Client
+	presignClient *s3.PresignClient
+	bucket        string
 }
 
 func NewS3Storage(client *s3.Client, bucket string) *S3Storage {
 	return &S3Storage{
-		client: client,
-		bucket: bucket,
+		client:        client,
+		presignClient: s3.NewPresignClient(client),
+		bucket:        bucket,
 	}
 }
 
 /*
-Upload file ke S3
+Helper: normalize URL -> key
+support:
+- receipts/123.jpg
+- https://xxx/receipts/123.jpg
+*/
+func normalizeKey(input string) string {
+	if strings.HasPrefix(input, "http") {
+		u, err := url.Parse(input)
+		if err == nil {
+			return strings.TrimPrefix(u.Path, "/")
+		}
+	}
+	return input
+}
+
+/*
+Upload (low level)
 */
 func (s *S3Storage) Upload(
 	ctx context.Context,
@@ -34,6 +54,9 @@ func (s *S3Storage) Upload(
 	size int64,
 	contentType string,
 ) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
@@ -47,13 +70,47 @@ func (s *S3Storage) Upload(
 }
 
 /*
-Download file dari S3 ke local path
+Upload file langsung dari path
+*/
+func (s *S3Storage) UploadFile(
+	ctx context.Context,
+	key string,
+	filePath string,
+) error {
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	return s.Upload(
+		ctx,
+		key,
+		file,
+		stat.Size(),
+		"application/octet-stream",
+	)
+}
+
+/*
+Download file ke local
 */
 func (s *S3Storage) Download(
 	ctx context.Context,
 	key string,
 	dst string,
 ) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	key = normalizeKey(key)
 
 	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
@@ -63,6 +120,10 @@ func (s *S3Storage) Download(
 		return err
 	}
 	defer out.Body.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), os.ModePerm); err != nil {
+		return err
+	}
 
 	file, err := os.Create(dst)
 	if err != nil {
@@ -75,13 +136,15 @@ func (s *S3Storage) Download(
 }
 
 /*
-Download langsung ke temporary file
-Ini yang biasanya dipakai OCR worker
+🔥 VERSI BARU (RECOMMENDED)
+Download ke temp + cleanup
 */
-func (s *S3Storage) DownloadToTemp(
+func (s *S3Storage) DownloadToTempWithCleanup(
 	ctx context.Context,
 	key string,
-) (string, error) {
+) (string, func(), error) {
+
+	key = normalizeKey(key)
 
 	tmpFile := filepath.Join(
 		os.TempDir(),
@@ -90,15 +153,30 @@ func (s *S3Storage) DownloadToTemp(
 
 	err := s.Download(ctx, key, tmpFile)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return tmpFile, nil
+	cleanup := func() {
+		_ = os.Remove(tmpFile)
+	}
+
+	return tmpFile, cleanup, nil
 }
 
 /*
-Generate presigned URL untuk akses file
-Biasanya dipakai frontend untuk melihat receipt
+🔥 VERSI LAMA (BIAR KODE KAMU NGGAK ERROR)
+*/
+func (s *S3Storage) DownloadToTemp(
+	ctx context.Context,
+	key string,
+) (string, error) {
+
+	path, _, err := s.DownloadToTempWithCleanup(ctx, key)
+	return path, err
+}
+
+/*
+Generate presigned URL
 */
 func (s *S3Storage) GetFileURL(
 	ctx context.Context,
@@ -106,9 +184,12 @@ func (s *S3Storage) GetFileURL(
 	expiry time.Duration,
 ) (string, error) {
 
-	presignClient := s3.NewPresignClient(s.client)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 
-	req, err := presignClient.PresignGetObject(
+	key = normalizeKey(key)
+
+	req, err := s.presignClient.PresignGetObject(
 		ctx,
 		&s3.GetObjectInput{
 			Bucket: aws.String(s.bucket),
