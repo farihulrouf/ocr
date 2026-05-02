@@ -111,13 +111,29 @@ func ProcessOCR(receiptID uuid.UUID) error {
 	// 4. Parse JSON hasil AI (Sekarang JSON sudah valid)
 	store, total, date, taxID, isQualified, subtotal, tax, items :=
 		aiagent.ParseReceipt(structuredJSON, rawText)
+
+	fingerprint := GenerateFingerprint(store, date, total)
+	existing, err := ocr.FindByFingerprint(receipt.TenantID, fingerprint)
+
+	if err == nil && existing != nil {
+		fmt.Println("[WARNING] DUPLICATE RECEIPT DETECTED:", existing.ID)
+
+		receipt.Status = "DUPLICATE"
+		receipt.OCRStatus = "COMPLETED"
+		receipt.UpdatedAt = time.Now()
+
+		_ = ocr.UpdateReceipt(receipt)
+
+		return nil
+	}
 	// 5. Map ke model Receipt
 	receipt.StoreName = store
 	receipt.TransactionDate = &date
 	receipt.TotalAmount = total
 	receipt.TaxRegistrationID = taxID
 	receipt.IsQualified = isQualified
-	receipt.OCRText = rawText // Tetap simpan teks asli untuk audit
+	receipt.Fingerprint = fingerprint // 🔥 INI WAJIB
+	receipt.OCRText = rawText         // Tetap simpan teks asli untuk audit
 	receipt.OCRStatus = "COMPLETED"
 	receipt.Status = "DRAFT"
 	receipt.UpdatedAt = time.Now()

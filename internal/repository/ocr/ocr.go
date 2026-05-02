@@ -5,6 +5,7 @@ import (
 	"ocr-saas-backend/internal/models"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 func CreateReceipt(r *models.Receipt) error {
@@ -31,4 +32,26 @@ func CreateReceiptItem(item *models.ReceiptItem) error {
 
 func DeleteReceiptItemsByReceiptID(receiptID uuid.UUID) error {
 	return configs.DB.Where("receipt_id = ?", receiptID).Delete(&models.ReceiptItem{}).Error
+}
+
+func FindByFingerprint(
+	tenantID uuid.UUID,
+	fingerprint string,
+) (*models.Receipt, error) {
+
+	var receipt models.Receipt
+
+	err := configs.DB.
+		Where("tenant_id = ? AND fingerprint = ?", tenantID, fingerprint).
+		First(&receipt).Error
+
+	// 🔥 ini penting
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // ✅ tidak ada duplicate
+		}
+		return nil, err // ❌ error beneran
+	}
+
+	return &receipt, nil
 }

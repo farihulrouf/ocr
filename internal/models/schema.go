@@ -129,7 +129,8 @@ type VendorMaster struct {
 
 type Receipt struct {
 	Base
-	TenantID          uuid.UUID        `gorm:"type:uuid" json:"tenant_id"`
+	TenantID uuid.UUID `gorm:"type:uuid;uniqueIndex:idx_fp_tenant"`
+
 	UserID            uuid.UUID        `gorm:"type:uuid" json:"user_id"`
 	User              User             `gorm:"foreignKey:UserID" json:"user"` // RELASI KE USER
 	ReportID          *uuid.UUID       `gorm:"type:uuid" json:"report_id"`
@@ -141,9 +142,9 @@ type Receipt struct {
 	VendorID *uuid.UUID    `gorm:"type:uuid" json:"vendor_id"`
 	Vendor   *VendorMaster `gorm:"foreignKey:VendorID" json:"vendor"`
 	// 🔥 TAMBAHAN INI
-	OCRText   string `gorm:"type:text" json:"ocr_text"`
-	OCRStatus string `gorm:"default:'PROCESSING'" json:"ocr_status"`
-
+	OCRText           string        `gorm:"type:text" json:"ocr_text"`
+	OCRStatus         string        `gorm:"default:'PROCESSING'" json:"ocr_status"`
+	Fingerprint       string        `gorm:"size:64;uniqueIndex:idx_fp_tenant;not null"`
 	Status            string        `gorm:"default:'PENDING'" json:"status"`
 	StoreName         string        `json:"store_name"`
 	TransactionDate   *time.Time    `json:"transaction_date"`
