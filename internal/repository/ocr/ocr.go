@@ -55,3 +55,10 @@ func FindByFingerprint(
 
 	return &receipt, nil
 }
+
+func HardDeleteReceiptByID(id uuid.UUID) error {
+	return configs.DB.
+		Unscoped().
+		Where("id = ?", id).
+		Delete(&models.Receipt{}).Error
+}

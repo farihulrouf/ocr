@@ -204,3 +204,14 @@ func (s *S3Storage) GetFileURL(
 
 	return req.URL, nil
 }
+
+func (s *S3Storage) Delete(ctx context.Context, key string) error {
+	key = normalizeKey(key)
+
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+
+	return err
+}
