@@ -39,7 +39,7 @@ func UploadReceipt(tenantID, userID uuid.UUID, imageURL string) (*models.Receipt
 		TenantID:  tenantID,
 		ReceiptID: receipt.ID,
 		Status:    "PENDING",
-		Engine:    "mistrail",
+		Engine:    "mistral",
 	}
 
 	if err := ocr.CreateOCRJob(job); err != nil {
@@ -109,8 +109,8 @@ func ProcessOCR(receiptID uuid.UUID) error {
 	}
 
 	// 4. Parse JSON hasil AI (Sekarang JSON sudah valid)
-	store, total, date, taxID, isQualified, subtotal, tax, items := aiagent.ParseReceipt(structuredJSON)
-
+	store, total, date, taxID, isQualified, subtotal, tax, items :=
+		aiagent.ParseReceipt(structuredJSON, rawText)
 	// 5. Map ke model Receipt
 	receipt.StoreName = store
 	receipt.TransactionDate = &date
@@ -161,17 +161,27 @@ func saveReceiptItems(
 ) {
 	fmt.Printf("[DEBUG][ITEM] Saving %d items for receipt %s\n", len(items), receiptID)
 
+	// 1. Tentukan tax rate (8% / 10%)
 	taxRate := 0
 	if subtotal > 0 && tax > 0 {
-		taxRate = int(float64(tax) / float64(subtotal) * 100)
+		rate := float64(tax) / float64(subtotal) * 100
+		if rate >= 9 {
+			taxRate = 10
+		} else {
+			taxRate = 8
+		}
 	}
 
+	var totalAllocated int64
+
+	// 2. Loop simpan item + distribusi tax
 	for i, it := range items {
 		amount := it.Amount
 
 		itemTax := int64(0)
-		if taxRate > 0 {
-			itemTax = amount - (amount * 100 / int64(100+taxRate))
+		if subtotal > 0 && tax > 0 {
+			itemTax = (amount * tax) / subtotal
+			totalAllocated += itemTax
 		}
 
 		item := &models.ReceiptItem{
@@ -191,6 +201,26 @@ func saveReceiptItems(
 			"[DEBUG][ITEM] saved #%d | %s | ¥%d | tax ¥%d (%d%%)\n",
 			i+1, it.Description, amount, itemTax, taxRate,
 		)
+	}
+
+	// 3. Fix rounding error (biar total tax = persis)
+	diff := tax - totalAllocated
+	if diff != 0 && len(items) > 0 {
+		fmt.Println("[DEBUG] Fix rounding tax diff:", diff)
+
+		// ambil item terakhir
+		lastItem := &models.ReceiptItem{}
+		err := configs.DB.
+			Where("receipt_id = ?", receiptID).
+			Order("id desc").
+			First(lastItem).Error
+
+		if err == nil {
+			lastItem.TaxAmount += diff
+			configs.DB.Save(lastItem)
+
+			fmt.Println("[DEBUG] Rounding diff added to last item")
+		}
 	}
 }
 

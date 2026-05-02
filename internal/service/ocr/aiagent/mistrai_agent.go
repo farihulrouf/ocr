@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -53,6 +56,13 @@ STRICT RULES:
 2. ITEM FILTER: Only include actual products in the "items" array.
 3. CLEANING: Fix OCR typos.
 4. MATH: Prices must be numeric integers.
+5. EXCLUDE non-product lines such as:
+   - tax lines (税, 消費税)
+   - totals (合計, 小計)
+   - payment (お預り, お釣り)
+   - adjustments or rounding
+
+6. If tax is only shown once, DO NOT distribute it per item.
 
 JSON STRUCTURE:
 {
@@ -153,7 +163,7 @@ RAW TEXT:
 	return "", fmt.Errorf("AI failed after retries: %v", lastErr)
 }
 
-func ParseReceipt(jsonText string) (
+func ParseReceipt(jsonText string, rawText string) (
 	store string, total int64, date time.Time, taxID string,
 	isQualified bool, subtotal int64, tax int64, items []ParsedItem,
 ) {
@@ -183,10 +193,22 @@ func ParseReceipt(jsonText string) (
 	var sumOfItems int64
 	fmt.Println("[DEBUG] Filtering & Summing Items:")
 	for _, it := range data.Items {
-		// Filter kata kunci yang sering nyasar jadi item
+
 		lowerName := strings.ToLower(it.Name)
-		if strings.Contains(lowerName, "tax") || strings.Contains(lowerName, "total") ||
-			strings.Contains(lowerName, "内税") || strings.Contains(lowerName, "合計") {
+		invalidKeywords := []string{
+			"tax", "total", "合計", "小計", "消費税",
+			"お釣り", "お預り", "内税", "外税",
+		}
+
+		skip := false
+		for _, kw := range invalidKeywords {
+			if strings.Contains(lowerName, kw) {
+				skip = true
+				break
+			}
+		}
+
+		if skip {
 			fmt.Printf("   [SKIP] Non-product detected: %s\n", it.Name)
 			continue
 		}
@@ -199,24 +221,75 @@ func ParseReceipt(jsonText string) (
 		fmt.Printf("   [ITEM] %-25s | Price: %d\n", it.Name, it.Price)
 	}
 
-	// 3. Mathematical Validation
-	// Di struk Jepang, 'Subtotal' biasanya (Total - Tax) atau (Total) jika pajak sudah termasuk (内税)
-	// Kita asumsikan subtotal murni adalah total dikurangi pajak
-	expectedSubtotal := total - tax
+	///////////////////////////////////////////////////////////
+	// 🔥 TAMBAHKAN DI SINI (fallback dari OCR raw text)
+	///////////////////////////////////////////////////////////
 
-	fmt.Printf("[DEBUG] Math Check -> Item Sum: %d | Expected Subtotal: %d\n", sumOfItems, expectedSubtotal)
+	lines := strings.Split(rawText, "\n")
 
-	if sumOfItems != expectedSubtotal {
-		diff := expectedSubtotal - sumOfItems
-		fmt.Printf("[WARNING] Math Mismatch! Diff: %d Yen. Adding adjustment row.\n", diff)
-
-		if diff != 0 {
-			items = append(items, ParsedItem{
-				Description: "Adjustment (Rounding/Others)",
-				Amount:      diff,
-			})
-			fmt.Println("   [DEBUG] Adjustment row added to maintain balance.")
+	for _, line := range lines {
+		desc, amt, ok := parseItemLine(line)
+		if !ok {
+			continue
 		}
+
+		// cek apakah sudah ada di items
+		exists := false
+		for _, it := range items {
+			if it.Description == desc && it.Amount == amt {
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			fmt.Printf("[DEBUG] Missing item detected from OCR: %s | %d\n", desc, amt)
+
+			items = append(items, ParsedItem{
+				Description: desc,
+				Amount:      amt,
+			})
+
+			sumOfItems += amt
+		}
+	}
+	// Gunakan sum item sebagai sumber kebenaran utama
+	// 3. Mathematical Validation (FIXED)
+
+	// Hitung selisih
+	diff := total - sumOfItems
+
+	fmt.Printf("[DEBUG] Math Check -> Item Sum: %d | Total: %d | Diff: %d\n", sumOfItems, total, diff)
+
+	// Estimasi apakah diff itu TAX (bukan error)
+	estimatedTaxRate := 0.0
+	if sumOfItems > 0 {
+		estimatedTaxRate = float64(diff) / float64(sumOfItems) * 100
+	}
+
+	// ✅ Jika masuk akal sebagai tax (<=15%)
+	if diff > 0 && estimatedTaxRate > 0 && estimatedTaxRate < 15 {
+		fmt.Printf("[DEBUG] Detected TAX from diff: %d Yen (%.2f%%)\n", diff, estimatedTaxRate)
+
+		// Override tax dari AI kalau perlu
+		// Selalu override kalau tax dari AI tidak masuk akal
+		if tax <= 0 || math.Abs(float64(tax-diff)) > 5 {
+			tax = diff
+			fmt.Println("[DEBUG] Tax overridden from diff")
+		}
+
+		// ❌ Kalau bukan tax → baru dianggap error
+	} else if math.Abs(float64(diff)) > 5 {
+		fmt.Printf("[WARNING] Large mismatch! Diff: %d Yen. Adding adjustment row.\n", diff)
+
+		items = append(items, ParsedItem{
+			Description: "Adjustment (Rounding/Others)",
+			Amount:      diff,
+		})
+
+		fmt.Println("   [DEBUG] Adjustment row added to maintain balance.")
+	} else {
+		fmt.Println("[DEBUG] Small diff ignored (rounding / OCR noise).")
 	}
 
 	// 4. Date Parsing
@@ -228,7 +301,50 @@ func ParseReceipt(jsonText string) (
 		date = parsedDate
 	}
 
-	subtotal = expectedSubtotal
+	subtotal = sumOfItems
 	fmt.Printf("[DEBUG] Final Result: %s | Total: %d | Items: %d\n", store, total, len(items))
 	return
+}
+
+func parseItemLine(line string) (string, int64, bool) {
+	line = strings.TrimSpace(line)
+
+	if line == "" {
+		return "", 0, false
+	}
+
+	// ✅ HARUS ADA simbol ¥ → ini kunci penting
+	if !strings.Contains(line, "¥") {
+		return "", 0, false
+	}
+
+	// ❌ skip keyword non-item
+	skipKeywords := []string{
+		"合計", "小計", "消費税", "お釣り", "お預り",
+		"税", "内税", "外税",
+	}
+
+	for _, kw := range skipKeywords {
+		if strings.Contains(line, kw) {
+			return "", 0, false
+		}
+	}
+
+	// ✅ format wajib: "nama ¥123"
+	re := regexp.MustCompile(`^(.+?)\s*¥([0-9,]+)$`)
+	match := re.FindStringSubmatch(line)
+
+	if len(match) != 3 {
+		return "", 0, false
+	}
+
+	desc := strings.TrimSpace(match[1])
+	priceStr := strings.ReplaceAll(match[2], ",", "")
+
+	price, err := strconv.ParseInt(priceStr, 10, 64)
+	if err != nil {
+		return "", 0, false
+	}
+
+	return desc, price, true
 }
