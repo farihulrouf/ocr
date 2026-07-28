@@ -39,7 +39,10 @@ type ParsedItem struct {
 	Amount      int64
 }
 
-func StructureTextWithAI(ocrText string) (string, error) {
+func StructureTextWithAI(
+	ocrText string,
+	currencyCode string,
+) (string, error) {
 
 	fmt.Println("\n[DEBUG] >>> STEP 2: AI STRUCTURING <<<")
 	fmt.Printf("[DEBUG] Raw Text Length: %d characters\n", len(ocrText))
