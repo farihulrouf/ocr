@@ -44,8 +44,6 @@ ocr_postgres_data/
 *.sqlite3
 
 # ---- Env / Credentials (RAHASIA) ----
-.env
-.env.local
 .env.*.local
 *.pem
 *.key
@@ -72,6 +70,7 @@ fiber.pid
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
 *.swp
 *.swo
+config.bat
+node_modules

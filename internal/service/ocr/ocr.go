@@ -6,6 +6,7 @@ import (
 	"log"
 	"ocr-saas-backend/configs"
 	"ocr-saas-backend/internal/models"
+	"ocr-saas-backend/internal/money"
 	"ocr-saas-backend/internal/repository/ocr"
 	"ocr-saas-backend/internal/service/ocr/aiagent"
 	"os"
@@ -97,12 +98,29 @@ func ProcessOCR(receiptID uuid.UUID) error {
 		return err
 	}
 
+	currency, ok := money.DetectCurrency(rawText)
+
+	if ok {
+		fmt.Printf(
+			"[DEBUG] Currency detected: %s (%s)\n",
+			currency.Code,
+			currency.Symbol,
+		)
+	} else {
+		fmt.Println("[WARNING] Currency not detected")
+	}
+
 	//extracted := "Full text from OCR..."
 	fmt.Printf("[DEBUG] Full Text Extracted: %s\n", rawText)
 
 	// 3.5. Ubah teks mentah menjadi JSON terstruktur (MENGGUNAKAN AI CHAT)
 	// Langkah ini sangat penting agar ParseReceipt tidak error!
-	structuredJSON, err := aiagent.StructureTextWithAI(rawText)
+	//structuredJSON, err := aiagent.StructureTextWithAI(rawText)
+	structuredJSON, err := aiagent.StructureTextWithAI(
+		rawText,
+		currency.Code,
+	)
+
 	if err != nil {
 		fmt.Println("[ERROR] Structuring failed:", err)
 		return err
