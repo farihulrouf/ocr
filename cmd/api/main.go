@@ -15,6 +15,8 @@ func main() {
 
 	// Init Dependencies
 	configs.ConnectDB(cfg)
+	//configs.SeedDatabase(configs.DB)
+
 	configs.ConnectRedis(cfg)
 	configs.InitS3(cfg)
 
